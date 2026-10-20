@@ -437,15 +437,17 @@ function Invoke-Wizard {
   Say 'Starting the original installer, Install.exe'
   Write-Host @'
 
-  In the installer window:
-    1. Next, then Accept the license, then type your name, then Next.
+  A media player may open first to play a short welcome sound: close it,
+  and the installer's first page is behind it. Then, in the installer:
+    1. Next, then Accept the license, then type your name (replacing
+       whatever it shows), then Next.
     2. Next again (ignore its list of old Windows versions).
     3. "Select Install Type": choose Custom, then Next.
     4. Tick "All Folio Program Files" and "VedaBase Master Files"
        (leave "WinAmp media player" unticked), then Next.
     5. Next, Next, Install, then Next, Next and Finish.
-    6. Close the Fonts window it opens. If it asks to restart now, choose
-       Cancel. This window finishes the setup.
+    6. When it says the system must be restarted, choose Cancel, then OK
+       on the next message. This window finishes the setup.
 
 '@
   $filler = Add-SpaceFiller
@@ -541,6 +543,13 @@ function Invoke-FinishPhase {
   if (-not (Test-FolioSettings)) {
     Say 'Restoring Folio''s default settings for your account'
     if ((Invoke-Tool 'reg.exe' @('import', $UserDefaults)) -ne 0) { Warn "Could not import $UserDefaults" }
+  }
+  # Install.exe lists a recent file that does not exist ("...Vedabase 4 Sh.sdw"),
+  # which Folio reports as an error when it is clicked: point it at VedaBase's.
+  $mru = 'HKCU:\Software\VedaBase\4\Views\Frame\RecentFileList'
+  $recent = Get-ItemProperty -LiteralPath $mru -ErrorAction SilentlyContinue
+  if ($recent -and $recent.PSObject.Properties['File1'] -and -not (Test-Path -LiteralPath $recent.File1)) {
+    Set-ItemProperty -LiteralPath $mru -Name File1 -Value (Join-Path $NfoDir 'Bhaktivedanta Vedabase 2003.sdw')
   }
 
   Say 'Done.'

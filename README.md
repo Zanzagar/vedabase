@@ -61,16 +61,20 @@ whether a PC is in S mode. Switching out of it is free but cannot be undone.
 2. Windows asks once for administrator rights, which the installer needs to
    write to `C:\` and the Fonts folder. Click **Yes**. A second window opens
    and downloads the files.
-3. The original VedaBase installer then opens. Click through it:
-   - **Next** → **Accept** → type your name → **Next**.
+3. The original VedaBase installer then opens. A media player may open first
+   to play a short welcome sound; close it, and the installer is behind it.
+   Click through the installer:
+   - **Next** → **Accept** → type your name (replace whatever it shows) →
+     **Next**.
    - **Next** again. Ignore its list of old Windows versions.
-   - At *Select Install Type*, choose **Custom**, then **Next**.
+   - At *Select Install Type*, choose **Custom**, then **Next**. (*Complete*
+     would also install WinAmp, a 2002 media player.)
    - Tick **All Folio Program Files** and **VedaBase Master Files**. Leave
      *WinAmp* unticked. Then **Next**.
    - **Next** → **Next** → **Install** → **Next** → **Next** → **Finish**.
-   - Close the Fonts window it opens.
-   - If it offers to restart, choose **Cancel**. If the PC does restart, run
-     the `.cmd` again afterwards and it will finish the setup.
+   - When it says your system must be restarted, choose **Cancel**, then
+     **OK** on the next message. No restart is needed; if the PC does
+     restart, run the `.cmd` again afterwards and it will finish the setup.
 4. The installer finishes on its own:
    - it fixes the link to the infobase and adds VaniBase 25,
    - it registers the diacritic fonts with Windows,
