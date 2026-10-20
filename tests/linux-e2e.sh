@@ -62,7 +62,13 @@ mkdir -p "$B/stamped/prefix/drive_c" && : >"$B/stamped/prefix/.vedabase-installe
 mkdir -p "$B/locked/prefix/drive_c/locked" && : >"$B/locked/prefix/drive_c/locked/f" &&
   chmod 555 "$B/locked/prefix/drive_c/locked" && tar -C "$B/locked" -czf "$B/unwritable.tar.gz" prefix &&
   chmod 755 "$B/locked/prefix/drive_c/locked"
-for bad in truncated no-prefix unfinished stamped unwritable; do
+# Every file a working install needs (a full-size infobase, sparse), but
+# neither the stamp nor the VedaBase_25.nfo name of a finished install.
+A="$B/unstamped/prefix/drive_c/Bhaktivedanta VedaBase 2003"
+mkdir -p "$A/Nfo" && : >"$B/unstamped/prefix/system.reg" && : >"$B/unstamped/prefix/user.reg" && : >"$A/Views.exe" &&
+  : >"$A/Nfo/Bhaktivedanta Vedabase 2003.sdw" && truncate -s 649011200 "$A/Nfo/Bhaktivedanta Vedabase 2003.nfo" &&
+  tar -C "$B/unstamped" -czf "$B/unstamped.tar.gz" prefix && rm -rf -- "$B/unstamped"
+for bad in truncated no-prefix unfinished stamped unwritable unstamped; do
   run ./install.sh --home "$VH" --reinstall --restore "$B/$bad.tar.gz" >"$B/restore-$bad.log" 2>&1
   check "a $bad backup is refused" test $? -ne 0
   check "after the $bad backup the existing prefix is still there" test -f "$VH/prefix/drive_c/notes-marker.txt"

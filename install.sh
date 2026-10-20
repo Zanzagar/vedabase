@@ -141,13 +141,15 @@ if ((reinstall)) && [[ -d $VB_PREFIX ]]; then
     vb_die "$VB_PREFIX is not a Wine prefix, so it is not deleted; move it away and run again"
 fi
 
-# A prefix fit to restore: the program, the whole infobase, its shadow file
-# and Wine's registry. A stamp alone proves nothing about a backup.
+# A prefix fit to restore: a finished install (as vb_installed sees one) that
+# also holds the program, the whole infobase, its shadow file and Wine's
+# registry, since a stamp alone proves nothing about a backup.
 prefix_complete() { # DIR
   local app=$1/$VB_APP_REL
-  [[ -f $1/system.reg && -f $1/user.reg && -f $app/Views.exe &&
-    -f "$app/Nfo/Bhaktivedanta Vedabase 2003.sdw" && -f "$app/Nfo/$VB_MASTER_NFO" &&
-    $(vb_size "$app/Nfo/$VB_MASTER_NFO") == "$VB_MASTER_SIZE" ]]
+  [[ -f $1/.vedabase-installed || (-e $app/Nfo/VedaBase_25.nfo && ! -L $1/drive_c/Install.exe) ]] &&
+    [[ -f $1/system.reg && -f $1/user.reg && -f $app/Views.exe &&
+      -f "$app/Nfo/Bhaktivedanta Vedabase 2003.sdw" && -f "$app/Nfo/$VB_MASTER_NFO" &&
+      $(vb_size "$app/Nfo/$VB_MASTER_NFO") == "$VB_MASTER_SIZE" ]]
 }
 
 stage='' old_prefix=''
