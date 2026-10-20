@@ -74,7 +74,9 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 
 ## Open, in order
 
-1. One real run each on Windows (Atman) and on a Mac, following `docs/testing.md`.
+1. One real run each on Windows (Atman) and on a Mac, following `docs/testing.md`. The
+   Windows run went to the Atman session `atman-linked-torvalds` on 2026-10-20; the Mac
+   run needs a field tester (Corey suggests Anandini Lalita, through Tāraka).
    Everything Windows-specific (the elevated phase, Active Setup, the notes restore, the
   free-space filler) has only been read and parsed, never run.
 2. ~~**Corey decides how to share it.** The repository is private, so the README's
