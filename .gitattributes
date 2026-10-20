@@ -8,3 +8,6 @@ bin/* text eol=lf
 
 # For agents and the maintainer, not for the people the ZIP goes to.
 HANDOFF.md export-ignore
+
+# Tests for whoever changes the installers.
+tests/ export-ignore
