@@ -1,7 +1,7 @@
 # Testing a new install
 
-The Linux installer was tested end to end on journel (Ubuntu 24.04,
-2026-10-19). The Windows and macOS installers have not yet run on those
+The Linux installer was tested end to end on an Ubuntu 24.04 server
+(2026-10-19). The Windows and macOS installers have not yet run on those
 systems: they were checked only for syntax (PowerShell 7 parser,
 ShellCheck) and on Linux where possible. Before showing them to anyone, run
 each once on a real machine and go through this list.

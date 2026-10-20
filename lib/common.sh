@@ -30,13 +30,11 @@ vb_die()  { printf '%serror:%s %s\n' "$_vb_b$_vb_red" "$_vb_0" "$*" >&2; exit 1;
 
 # --- locations ----------------------------------------------------------------
 # VEDABASE_HOME holds everything large: Wine, the prefix, the downloads and the
-# helper tools. On journel it defaults to the local NVMe disk, because $HOME
-# there is a 40 GiB NFS quota and Wine handles file locking on NFS badly.
+# helper tools (about 3 GB). Point it at a local disk with --home when $HOME is
+# small or on NFS; Wine handles file locking on NFS badly.
 vb_default_home() {
   if [[ $(uname -s) == Darwin ]]; then
     printf '%s\n' "$HOME/Library/Application Support/VedaBase"
-  elif [[ -d /journel/s0/$USER && -w /journel/s0/$USER ]]; then
-    printf '%s\n' "/journel/s0/$USER/vedabase"
   else
     printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/vedabase"
   fi

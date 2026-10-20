@@ -7,6 +7,18 @@
 
 vb_cookie() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
 
+# Unix socket paths are limited to 107 bytes, too short for a deep
+# VEDABASE_HOME, so the sockets live in a private directory under /tmp, named
+# by a hash of the home so that two installs never share one.
+vb_sock() { # NAME
+  local d
+  d=/tmp/vedabase-$(id -u)
+  [[ -d $d ]] || mkdir -m 700 "$d" 2>/dev/null || [[ -d $d ]] || vb_die "cannot create $d"
+  [[ -O $d && ! -L $d ]] || vb_die "$d belongs to someone else; remove it and retry"
+  chmod 700 "$d"
+  printf '%s/%s-%s.sock\n' "$d" "$1" "$(printf '%s' "$VB_HOME" | cksum | cut -d' ' -f1)"
+}
+
 vb_free_display() {
   local n
   for n in {40..99}; do
@@ -38,7 +50,9 @@ vb_display_start() {
     return 0
   fi
   n=$(vb_free_display) || vb_die "no free X display number between :40 and :99"
-  rm -f -- "$d/xauth" "$d/vnc.sock"
+  local sock
+  sock=$(vb_sock "$name")
+  rm -f -- "$d/xauth" "$sock"
   (umask 077 && : >"$d/xauth")
   # Fed on stdin: argv is readable by every user on a shared machine.
   printf 'add :%s . %s\n' "$n" "$(vb_cookie)" | xauth -q -f "$d/xauth" source -
@@ -46,7 +60,7 @@ vb_display_start() {
   # interface); -localhost is a second guard in case that ever changes. Wine's
   # virtual desktop cannot follow a resized screen, so resizing is refused.
   local args=(":$n" -auth "$d/xauth" -geometry "$geom" -depth 24 -dpi 96
-    -rfbport -1 -localhost -rfbunixpath "$d/vnc.sock" -rfbunixmode 0600
+    -rfbport -1 -localhost -rfbunixpath "$sock" -rfbunixmode 0600
     -nolisten tcp -desktop VedaBase -SecurityTypes "$sec" -AlwaysShared
     -AcceptSetDesktopSize=0)
   [[ $sec == VncAuth ]] && args+=(-rfbauth "$d/vncpasswd")
@@ -71,7 +85,7 @@ vb_display_start() {
 vb_display_stop() { # NAME
   local d=$VB_RUN/$1
   if vb_display_alive "$1"; then kill "$(<"$d/xvnc.pid")" 2>/dev/null || true; fi
-  rm -f -- "$d/xvnc.pid" "$d/display" "$d/vnc.sock"
+  rm -f -- "$d/xvnc.pid" "$d/display" "$(vb_sock "$1")"
 }
 
 # --- browser viewer -------------------------------------------------------------
@@ -115,7 +129,7 @@ vb_web_start() { # GEOMETRY
   novnc=$(vb_novnc_dir) || vb_die "noVNC is missing; re-run install.sh"
   # Ubuntu's websockify package targets the system python3, not pyenv/uv ones.
   PYTHONPATH=$VB_TOOLS/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH} \
-    setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$d/vnc.sock" \
+    setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$(vb_sock web)" \
     "127.0.0.1:$port" >"$d/websockify.log" 2>&1 </dev/null &
   printf '%s\n' "$!" >"$d/websockify.pid"
   sleep 1

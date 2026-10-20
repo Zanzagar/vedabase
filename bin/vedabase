@@ -97,7 +97,7 @@ VedaBase is running in a private display on $host.
 
 1. On your own computer, open a tunnel (leave it running):
      ssh -N -L $port:127.0.0.1:$port $USER@$host
-   (Tabby: add a local port forward $port -> 127.0.0.1:$port to the profile instead.)
+   (Or add a local forward $port -> 127.0.0.1:$port to your SSH client's saved session.)
 2. Open in a browser:
      $(web_url)
 
@@ -141,7 +141,11 @@ cmd_doctor() {
   check "Folio Views installed" test -f "$VB_APP_DIR/Views.exe"
   check "VedaBase 25 infobase" test -f "$VB_APP_DIR/Nfo/VedaBase_25.nfo"
   check "VedaBase shadow file" test -f "$VB_APP_DIR/Nfo/Bhaktivedanta Vedabase 2003.sdw"
-  check "VaniBase 25 infobase (optional)" test -f "$VB_APP_DIR/Nfo/VaniBase_25.nfo"
+  if [[ -f $VB_APP_DIR/Nfo/VaniBase_25.nfo ]]; then
+    printf '  ok    VaniBase 25 infobase\n'
+  else
+    printf '  info  VaniBase 25 not installed (optional)\n'
+  fi
   f=$(find "$VB_PREFIX/drive_c/windows/Fonts" -maxdepth 1 -iname 'balaram_.ttf' 2>/dev/null)
   check "diacritic fonts in C:\\windows\\Fonts" test -n "$f"
   check "launcher on PATH" command -v vedabase

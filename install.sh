@@ -18,7 +18,7 @@ Usage: ./install.sh [OPTIONS]
                    (default: $(vb_default_home))
   --source SRC     take the VedaBase files from SRC instead of Google Drive:
                    a directory or host:dir laid out like the Drive folders,
-                   e.g. journel.eme.psu.edu:/journel/s0/$USER/vedabase/downloads
+                   e.g. you@server:/path/to/vedabase/downloads
   --restore FILE   unpack a prefix saved by 'vedabase backup' instead of
                    running Install.exe
   --name NAME      name to register in the installer (default: your full name)

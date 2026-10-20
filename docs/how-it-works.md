@@ -1,7 +1,7 @@
 # How the installer works
 
 What `install.sh` does and why, written down on 2026-10-19 while installing on
-journel. The why matters most: each step below fixes something that broke when
+an Ubuntu 24.04 server. The why matters most: each step below fixes something that broke when
 the original Windows instructions ran under Wine.
 
 ## The inputs
@@ -119,12 +119,12 @@ the shadow file. The `.sdw` is copied only once, because your notes live in it.
 
 ## Showing it on a headless machine
 
-journel has no display, so `vedabase web` makes one. Every part runs as you,
+A headless server has no display, so `vedabase web` makes one. Every part runs as you,
 with no root:
 
 - **TigerVNC's `Xvnc`**, from the Ubuntu package unpacked under
   `tools/`. It takes an X cookie, passed to `xauth` on stdin because every
-  user on journel can read command lines. It serves VNC only on a unix socket
+  user on a shared server can read command lines. It serves VNC only on a unix socket
   with mode 0600. `-rfbport -1` is essential: `-rfbport 0` still opens TCP
   5900+N on every interface, as the first test run showed. It does need
   `xkbcomp` at `/usr/bin` (package `x11-xkb-utils`), because the keymap
@@ -133,7 +133,7 @@ with no root:
   started with the system `/usr/bin/python3`, because the package is built for
   it. It listens on `127.0.0.1:6080`, and the VNC password (in
   `run/web/password`) keeps out other local users, since a localhost port is
-  open to everyone on journel.
+  open to every user of the machine.
 - **A Wine virtual desktop** (`explorer /desktop=VedaBase,1600x1000`). Without
   a window manager, Folio's window would have no frame, so it couldn't be
   moved or maximized. Folio also doesn't maximize itself under Wine, so
@@ -146,22 +146,36 @@ a desktop exists (for example WSLg), it uses that desktop instead.
 
 ## Windows and macOS
 
-**Windows** (`windows/install-vedabase.ps1`) needs no Wine. It does on Windows
-exactly what Ekanatha's README asks:
+**Windows** (`windows/install-vedabase.ps1`) needs no Wine. It follows
+Ekanatha's README on Windows itself, in three phases, so that each step runs as
+the right account:
 
-- It downloads to the root of `C:\`, checked against the same manifest, and
-  runs the original `Install.exe`. The user clicks through; Setup Factory 5
-  has no silent switch.
-- While the wizard is still on its last pages, it adds the `VedaBase_25.nfo`
-  hard link and VaniBase 25 with shortcuts. That way a "restart now" answered
-  with OK cannot skip them.
-- After the wizard closes, it installs any font missing from
-  `C:\Windows\Fonts` through the Fonts shell folder, which is the README's
-  "drag them onto Fonts", scripted.
-- It sets Windows XP SP3 compatibility on `Views.exe`, which was a known fix
-  for Folio hanging on exit under Windows 7 (a 2015 report says it didn't help
-  on Windows 10). It then deletes the `C:\` items it created, tracked in
-  `%ProgramData%\VedaBase-Setup`.
+1. **User:** checks first. Locked-down PowerShell (Smart App Control or App
+   Control) stops it with an explanation, since that policy would also block
+   the 2003 programs. Smart App Control in its "on" state gets a warning, and
+   it also checks disk space. Then it asks for administrator rights once.
+2. **Machine** (elevated):
+   - It downloads to the root of `C:\`, checked against the same manifest.
+   - It sets Windows XP SP2 compatibility on `Views.exe` with `reg.exe`.
+     Devotees used that against Folio hanging on exit under Windows 7; a 2015
+     report says it didn't help on Windows 10.
+   - It runs the original `Install.exe`, and the user clicks through, because
+     Setup Factory 5 has no silent switch. While the wizard is still on its
+     last pages, it adds the `VedaBase_25.nfo` hard link and VaniBase 25, so a
+     "restart now" answered with OK cannot skip them.
+   - It registers all 51 fonts (`manifest/fonts.tsv`). Under Wine, Install.exe
+     only copied them, writing nothing to the registry, and real Windows loads
+     only registered fonts. That fits the README's "drag them onto Fonts if the
+     diacritics fail".
+   - It removes the `C:\` items it created.
+3. **Finish** (the user again): if `HKCU\Software\VedaBase\4` is missing, it
+   imports `windows/vedabase-defaults.reg`. That is what Install.exe writes,
+   captured from a fresh install. The settings land in another account when
+   someone elevates with a different administrator, or under Windows 11's
+   Administrator protection. Without them, Folio shows the contents pane in a
+   plain font, so the diacritics come out as "Çrémad-Bhägavatam", and moves its
+   toolbars; this was checked by deleting the key under Wine. It then makes sure
+   the user has a desktop icon.
 
 **macOS** (`mac/install.sh`) shares `lib/fetch.sh` and `lib/setup.sh` with
 Linux, both kept bash 3.2-compatible. It uses Gcenx's `wine-stable-11.0_1`.
@@ -173,7 +187,7 @@ post-install steps apply. It then writes two small app bundles to
 `~/Applications`; each one's `launch` script runs `Views.exe` on its shadow
 file. They are built locally, so Gatekeeper never quarantines them.
 
-## What was verified on journel
+## What was verified
 
 Checked 2026-10-19 on Ubuntu 24.04 with Wine 11.0:
 
@@ -195,10 +209,10 @@ Checked 2026-10-19 on Ubuntu 24.04 with Wine 11.0:
 
 ## The license you accept
 
-`Install.exe` shows the 2003 Bhaktivedanta Archives license, and the
-installer accepts it on your behalf. Clause 2.1: "permits you to use one copy
-of the SOFTWARE on the Host Computer … only one person may access the SOFTWARE
-at a time". Clause 2.4 forbids copying "except to your personal archival
-copy" and use "in an on-line system". The `vedabase backup` tarball is that
-archival copy. Installing on more than one machine, or giving it to others,
-goes beyond the license's wording; ask Tāraka how he handles that.
+`Install.exe` shows the 2003 Bhaktivedanta Archives license. The Linux
+installer clicks Accept for you; on Windows and macOS you click it yourself.
+Clause 2.1 "permits you to use one copy of the SOFTWARE on the Host Computer …
+only one person may access the SOFTWARE at a time". Clause 2.4 forbids copying
+"except to your personal archival copy", and use "in an on-line system".
+`vedabase backup` makes that archival copy. Any wider use is a question for
+the Bhaktivedanta Archives.

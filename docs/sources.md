@@ -47,5 +47,5 @@ What worked:
 - Keep a backup of the working bottle.
 
 The Linux install here does not need MSXML or the core fonts. Everything
-listed in [how-it-works.md](how-it-works.md#what-was-verified-on-journel)
+listed in [how-it-works.md](how-it-works.md#what-was-verified)
 works without them.
