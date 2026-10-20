@@ -72,7 +72,13 @@ vb_installed() { [[ -f $VB_APP_DIR/Views.exe ]]; }
 # Portable between GNU (Linux) and BSD (macOS) userlands.
 vb_size() { wc -c <"$1" | tr -d ' '; }
 vb_sha256() {
-  if command -v sha256sum >/dev/null; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi
+  if command -v sha256sum >/dev/null; then
+    sha256sum | cut -d' ' -f1
+  elif command -v shasum >/dev/null; then
+    shasum -a 256 | cut -d' ' -f1
+  else # shasum is Perl, which Apple may drop; LibreSSL's openssl ships with macOS
+    openssl dgst -sha256 | awk '{print $NF}'
+  fi
 }
 
 # Wine processes that belong to this prefix (wineserver -k would also do, but

@@ -58,18 +58,21 @@ Notes:
 - **Smart App Control.** If Windows blocks the 2003 programs, turn off Smart
   App Control in *Windows Security → App & browser control*. The installer
   warns you when it is on.
-- **Hang on exit.** If VedaBase ever hangs when closing, close it with
-  **File → Exit** rather than the window's X. Windows XP compatibility mode,
-  which the installer sets, was the usual fix for this on Windows 7. Run
-  `windows\install-vedabase.ps1 -NoCompatMode` to skip setting it.
+- **Freeze on exit.** If VedaBase freezes when you close it, end it from
+  Task Manager (Ctrl+Shift+Esc). This is a known problem with this 2003
+  program on newer Windows. The installer sets Windows XP compatibility mode,
+  which devotees used against it on Windows 7, though one report says it did
+  not help on Windows 10. Run `windows\install-vedabase.ps1 -NoCompatMode`
+  to skip setting it.
 - **Without VaniBase.** Run `windows\install-vedabase.ps1 -NoVaniBase`.
 
 ## macOS (Intel or Apple Silicon)
 
 1. Double-click **`Install-VedaBase-Mac.command`**. If macOS refuses to open
    it, see [below](#if-macos-will-not-open-the-installer).
-2. On Apple Silicon it first installs Rosetta 2 if it is missing, which asks
-   for your password. It then downloads a free Wine for macOS (Gcenx's build,
+2. On Apple Silicon it first installs Rosetta 2 if it is missing. That needs
+   an administrator account, and macOS asks for your password. It then
+   downloads a free Wine for macOS (Gcenx's build,
    which WineHQ distributes; CrossOver is not needed) and the VedaBase files.
 3. The original installer opens. Click through it as in the Windows steps
    above: **Custom**, tick the first two packages, **Install**, **Finish**.
@@ -82,15 +85,19 @@ Everything lives in `~/Library/Application Support/VedaBase`.
 
 ### If macOS will not open the installer
 
-macOS blocks downloaded scripts that Apple has not notarized:
+macOS blocks downloaded scripts that Apple has not notarized. The way that
+always works:
 
-- **macOS 15 or later:** click **Done** on the warning. Open
-  **System Settings → Privacy & Security**, scroll down, and click
-  **Open Anyway** next to `Install-VedaBase-Mac.command`. Do this within about
-  an hour. Enter your password, then click **Open**.
-- **macOS 14 or earlier:** Control-click the file and choose **Open**.
-- **Any version:** open **Terminal**, type `bash ` (with a space), drag
-  `Install-VedaBase-Mac.command` into the window, and press Return.
+1. Open **Terminal**, which is in Applications → Utilities.
+2. Type `bash ` (with a space after it).
+3. Drag `Install-VedaBase-Mac.command` from the Finder into the Terminal
+   window, then press Return.
+4. If macOS asks whether Terminal may access your Downloads folder, click
+   **OK**.
+
+Alternatively, on macOS 15 or later click **Done** on the warning, then go to
+**System Settings → Privacy & Security** and click **Open Anyway** next to the
+file. On macOS 14 or earlier, Control-click the file and choose **Open**.
 
 ### How long the free Mac route will work
 
@@ -99,6 +106,10 @@ The free Wine for macOS is an Intel program. On Intel Macs it runs on macOS
 Apple says will be limited to games from macOS 28 (expected autumn 2027). After
 that, the free route probably ends on Apple Silicon Macs. The only announced
 alternative is paid CrossOver.
+
+There is also an open WineHQ bug (60494): on Apple Silicon, some 32-bit Windows
+programs crash or hang at random under Rosetta. Nobody has tried VedaBase on a
+Mac with these installers yet, so the first Mac run is also the test of this.
 
 ## Linux (Ubuntu, Debian; also WSL)
 

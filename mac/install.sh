@@ -34,6 +34,8 @@ vb_say "Installing into $VB_HOME"
 
 # Gcenx's Wine is an Intel (x86_64) program; Apple Silicon runs it through Rosetta 2.
 if [[ $(uname -m) == arm64 ]] && ! /usr/bin/arch -x86_64 /usr/bin/true 2>/dev/null; then
+  id -Gn | tr ' ' '\n' | grep -qx admin ||
+    vb_die "this Mac needs Rosetta 2, which only an administrator can install: sign in as one and run  softwareupdate --install-rosetta --agree-to-license  then run this installer again"
   vb_say "Installing Rosetta 2 (macOS asks for your password)"
   sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
 fi

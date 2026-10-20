@@ -27,6 +27,18 @@ each once on a real machine and go through this list.
 
 ## Windows only
 
+- Registry checks after the install (run `regedit`, or `reg query` in a
+  terminal):
+  - `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts` has entries
+    such as `Sanskrit Times (TrueType)` and `Balaram (TrueType)`.
+  - `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers`
+    has the value `C:\Bhaktivedanta VedaBase 2003\Views.exe`, set to
+    `~ WINXPSP2`. Any other programs' entries in that key are still there.
+  - `HKCU\Software\VedaBase\4` exists for the user who will read VedaBase.
+- If possible, also install as a standard user, typing an administrator's
+  password when Windows asks. Then check that the contents pane still shows
+  correct diacritics: the finish phase should restore the settings.
+
 - Record which prompts appeared (UAC, SmartScreen, "Open File – Security
   Warning"), so the README can describe them exactly.
 - After the install, `C:\Install.exe`, `C:\Fonts`, `C:\Nfo` and `C:\Spec` are
@@ -37,6 +49,9 @@ each once on a real machine and go through this list.
   closing.
 
 ## macOS only
+
+- Open and close VedaBase about 20 times on an Apple Silicon Mac. Open WineHQ
+  bug 60494 makes some 32-bit programs crash or hang at random under Rosetta.
 
 - Record what Gatekeeper showed for the `.command` and which way past it
   worked.

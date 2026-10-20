@@ -90,6 +90,9 @@ function Invoke-UserPhase {
       Fail "Cannot find $f. Extract the whole ZIP (right-click it, Extract All) and run the installer from there."
     }
   }
+  # Files unzipped from a download carry the Mark of the Web; clear it so
+  # Windows does not question the scripts again in the elevated window.
+  Get-ChildItem -LiteralPath $Root -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
   if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
     Fail ('Windows is restricting PowerShell here (Smart App Control or another App Control policy). ' +
       'That policy would also block the 2003 VedaBase programs. Turn off Smart App Control in ' +
@@ -137,18 +140,38 @@ function Get-Target([string]$Rel) {
   return "$Cache\$win"
 }
 
+# Windows' curl checks certificate revocation through Schannel, which fails on
+# networks that block the revocation servers; curl 7.70+ can skip that check
+# when the servers are unreachable. Older builds (Windows 10 1803 had 7.55)
+# would reject the option.
+$script:CurlRevoke = $null
+function Test-CurlRevokeBestEffort {
+  if ($null -eq $script:CurlRevoke) {
+    $script:CurlRevoke = $false
+    try {
+      $v = (& "$env:SystemRoot\System32\curl.exe" --version 2>$null | Select-Object -First 1)
+      if ($v -match '^curl (\d+)\.(\d+)') {
+        $script:CurlRevoke = ([int]$Matches[1] -gt 7) -or ([int]$Matches[1] -eq 7 -and [int]$Matches[2] -ge 70)
+      }
+    } catch { }
+  }
+  return $script:CurlRevoke
+}
+
 function Get-DriveFile($Row, [string]$Path) {
   $id, $rel, $size, $sha = $Row
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
   $url = $DriveUrl + $id
   $curl = "$env:SystemRoot\System32\curl.exe"
+  $extra = @()
+  if (Test-CurlRevokeBestEffort) { $extra = @('--ssl-revoke-best-effort') }
   for ($try = 1; $try -le 3; $try++) {
     Say "Downloading $rel"
     $ok = $false
     if (Test-Path -LiteralPath $curl) {
       # curl's progress meter is on stderr; keep PowerShell from treating it as an error.
       $ErrorActionPreference = 'Continue'
-      & $curl -fL --retry 5 --retry-delay 3 --connect-timeout 30 --speed-limit 1024 --speed-time 120 -o "$Path.part" $url
+      & $curl -fL --retry 5 --retry-delay 3 --connect-timeout 30 --speed-limit 1024 --speed-time 120 @extra -o "$Path.part" $url
       $ok = ($LASTEXITCODE -eq 0)
       $ErrorActionPreference = 'Stop'
     } else {
@@ -350,7 +373,8 @@ function Invoke-FinishPhase {
 
   Say 'Done.'
   Write-Host '  Open "Bhaktivedanta VedaBase 2003" (VedaBase 25) or "VaniBase 25" from the desktop or the Start menu.'
-  Write-Host '  If VedaBase ever hangs when closing, use File > Exit rather than the window''s X.'
+  Write-Host '  If VedaBase ever freezes when closing (a known problem of this 2003 program on newer'
+  Write-Host '  Windows), end it from Task Manager (Ctrl+Shift+Esc).'
   $answer = Read-Host 'Open VedaBase now? [Y/n]'
   if ($answer -notmatch '^[nN]') {
     Start-Process -FilePath (Join-Path $AppDir 'Views.exe') -WorkingDirectory $AppDir `
