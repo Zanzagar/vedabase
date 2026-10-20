@@ -82,6 +82,11 @@ puts the 51 fonts in `C:\windows\Fonts`, writes `HKCU\Software\VedaBase\4`,
 and creates shortcuts. The main shortcut runs
 `Views.exe "C:\Bhaktivedanta VedaBase 2003\Nfo\Bhaktivedanta Vedabase 2003.sdw"`.
 
+Of the system folders, the installer touches only one file: it adds
+`mfc40.dll` (MFC 4.0, 1996) to `syswow64`. Wine has no built-in MFC, so Folio
+needs it. None of Wine's own DLLs were overwritten, which some Setup Factory
+installers do (WineHQ bug 49076).
+
 ## The fix the README doesn't mention: `VedaBase_25.nfo`
 
 Folio opens an infobase through its **shadow file** (`.sdw`). The shadow file
@@ -138,6 +143,35 @@ with no root:
 The installer uses the same kind of private display: a separate `Xvnc`, so the
 wizard never appears on anyone's screen. Where `x11-xkb-utils` is missing but
 a desktop exists (for example WSLg), it uses that desktop instead.
+
+## Windows and macOS
+
+**Windows** (`windows/install-vedabase.ps1`) needs no Wine. It does on Windows
+exactly what Ekanatha's README asks:
+
+- It downloads to the root of `C:\`, checked against the same manifest, and
+  runs the original `Install.exe`. The user clicks through; Setup Factory 5
+  has no silent switch.
+- While the wizard is still on its last pages, it adds the `VedaBase_25.nfo`
+  hard link and VaniBase 25 with shortcuts. That way a "restart now" answered
+  with OK cannot skip them.
+- After the wizard closes, it installs any font missing from
+  `C:\Windows\Fonts` through the Fonts shell folder, which is the README's
+  "drag them onto Fonts", scripted.
+- It sets Windows XP SP3 compatibility on `Views.exe`, which was a known fix
+  for Folio hanging on exit under Windows 7 (a 2015 report says it didn't help
+  on Windows 10). It then deletes the `C:\` items it created, tracked in
+  `%ProgramData%\VedaBase-Setup`.
+
+**macOS** (`mac/install.sh`) shares `lib/fetch.sh` and `lib/setup.sh` with
+Linux, both kept bash 3.2-compatible. It uses Gcenx's `wine-stable-11.0_1`.
+That build is WoW64-only and bundles FreeType and GnuTLS, but it is an x86_64
+program, so Apple Silicon runs it through Rosetta 2. There is no xdotool on
+macOS, so the user clicks through the wizard. `wineserver -w` waits for every
+installer window to close. The same Windows 7 mode, `intro.wav` handler and
+post-install steps apply. It then writes two small app bundles to
+`~/Applications`; each one's `launch` script runs `Views.exe` on its shadow
+file. They are built locally, so Gatekeeper never quarantines them.
 
 ## What was verified on journel
 

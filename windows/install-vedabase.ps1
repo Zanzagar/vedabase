@@ -119,13 +119,19 @@ function Get-DriveFile($File, [string]$Path) {
 
 # --- the steps the README does not cover -------------------------------------------
 function New-Shortcut([string]$Path, [string]$Arguments) {
-  $shell = New-Object -ComObject WScript.Shell
-  $link = $shell.CreateShortcut($Path)
-  $link.TargetPath = Join-Path $AppDir 'Views.exe'
-  $link.Arguments = $Arguments
-  $link.WorkingDirectory = $AppDir
-  $link.IconLocation = (Join-Path $AppDir 'vedabase.ico') + ',0'
-  $link.Save()
+  # WScript.Shell belongs to Windows Script Host, which Microsoft is phasing
+  # out with VBScript; a missing shortcut must not stop the install.
+  try {
+    $shell = New-Object -ComObject WScript.Shell
+    $link = $shell.CreateShortcut($Path)
+    $link.TargetPath = Join-Path $AppDir 'Views.exe'
+    $link.Arguments = $Arguments
+    $link.WorkingDirectory = $AppDir
+    $link.IconLocation = (Join-Path $AppDir 'vedabase.ico') + ',0'
+    $link.Save()
+  } catch {
+    Warn "Could not create the shortcut $Path ($($_.Exception.Message))"
+  }
 }
 
 function Install-MissingFonts {

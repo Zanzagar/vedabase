@@ -117,7 +117,7 @@ mkdir -p "$VB_HOME/app" "$(dirname -- "$VB_BIN_LINK")"
 cp -r -- "$VB_REPO/bin" "$VB_REPO/lib" "$VB_HOME/app/"
 ln -sfn -- "$VB_HOME/app/bin/vedabase" "$VB_BIN_LINK"
 
-# Menu entries (WSLg also lists them in the Windows Start menu).
+# Menu entries for Linux desktops.
 mkdir -p "$VB_APPS_DIR" "$VB_HOME/icons"
 python3 -I "$VB_REPO/lib/ico2png.py" "$VB_APP_DIR/vedabase.ico" "$VB_HOME/icons/vedabase.png" ||
   vb_warn "could not convert the VedaBase icon; the menu entries will have none"
@@ -142,6 +142,18 @@ else
 fi
 if command -v update-desktop-database >/dev/null; then
   update-desktop-database -q "$VB_APPS_DIR" 2>/dev/null || true
+fi
+# WSLg mirrors menu entries into the Windows Start menu, but only from system
+# folders such as /usr/share/applications, never from ~/.local/share.
+if [[ -n ${WSL_DISTRO_NAME:-} ]]; then
+  wsl_entries=("$VB_APPS_DIR/vedabase.desktop")
+  ((vanibase)) && wsl_entries+=("$VB_APPS_DIR/vanibase.desktop")
+  if sudo -n true 2>/dev/null; then
+    sudo install -m 0644 "${wsl_entries[@]}" /usr/share/applications/
+    vb_say "Added Start-menu entries (Start > $WSL_DISTRO_NAME)"
+  else
+    vb_say "For Windows Start-menu entries, run once:  sudo install -m 0644 ${wsl_entries[*]} /usr/share/applications/"
+  fi
 fi
 
 "$VB_BIN_LINK" doctor || vb_die "the installation check failed (see above)"
