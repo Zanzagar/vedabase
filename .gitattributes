@@ -11,3 +11,11 @@ HANDOFF.md export-ignore
 
 # Tests for whoever changes the installers.
 tests/ export-ignore
+
+# For agents and the maintainer (claude-harness), not for the people the ZIP goes to.
+AGENTS.md export-ignore
+CLAUDE.md export-ignore
+.claude/ export-ignore
+.githooks/ export-ignore
+.github/ export-ignore
+docs/handoffs/ export-ignore

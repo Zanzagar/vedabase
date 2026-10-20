@@ -1,0 +1,48 @@
+{
+  "_source": "Merged 2026-10-20 from claude-harness (main 05058cc) settings/permissions-deny.snippet.json and settings/git-hygiene.snippet.json, under Corey's standing decision of 2026-09-28 that every project gets the rules and the commit gate. Their _comment fields explain each rule; edit the harness snippets and re-merge rather than diverging here.",
+  "_workflow_ask": "Workflow is in ask: Corey approves each launch (harness ADR 0001, amended 2026-10-12: a wave is the last resort, one at a time, one verifier per question). Ask rules prompt in every permission mode, bypassPermissions included.",
+  "permissions": {
+    "deny": [
+      "Read(~/.ssh/*)",
+      "Read(~/.aws/*)",
+      "Read(~/.env)",
+      "Read(**/credentials*)",
+      "Read(**/.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Write(~/.ssh/*)",
+      "Write(~/.aws/*)",
+      "Write(**/.env*)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Write(**/credentials*)",
+      "Bash(git * push --force *)",
+      "Bash(git * push -f *)",
+      "Bash(git * push --force-with-lease *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git branch -D main)",
+      "Bash(git branch -D master)",
+      "Bash(git commit --no-verify *)",
+      "Bash(git commit * --no-verify)",
+      "Bash(git commit * --no-verify *)",
+      "Bash(git commit -n *)",
+      "Bash(git commit * -n)",
+      "Bash(git commit * -n *)",
+      "Bash(git * commit --no-verify *)",
+      "Bash(git * commit * --no-verify)",
+      "Bash(git * commit * --no-verify *)",
+      "Bash(git * commit -n *)",
+      "Bash(git * commit * -n)",
+      "Bash(git * commit * -n *)"
+    ],
+    "ask": [
+      "Workflow",
+      "Bash(git reset --hard *)",
+      "Bash(git push --delete *)",
+      "Bash(git push origin --delete *)",
+      "Bash(gh repo delete *)"
+    ]
+  }
+}
