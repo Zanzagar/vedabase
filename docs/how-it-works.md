@@ -295,20 +295,27 @@ Checked in October 2026 on Ubuntu 24.04 with Wine 11.0:
   stubbed, Linux Wine stood in for the Mac build, and a helper clicked the
   wizard. The app it built opened VedaBase 25 with correct diacritics.
 
-Checked in October 2026 on one Windows 11 Home 25H2 PC (x64), with the README's
-steps (*Complete* first, then *Custom* after an uninstall): the downloads, the wizard, VedaBase
-and VaniBase opening, the diacritics at Bg 2.13, search, a note kept across
-restarts, no hang on exit, the fonts, the swap folders, Active Setup and the
-clean-up of `C:\`, and a second run that changes nothing. Found there and
-fixed: Windows PowerShell 5.1 refused to create a folder at `C:\`; Windows XP
-mode made every start ask for administrator rights; a stale recent-file entry;
+Checked in October 2026 on one Windows 11 Home 25H2 PC (x64), after an
+install with *Complete* (the wizard's default): the downloads, the wizard,
+VedaBase and VaniBase opening, the diacritics at Bg 2.13, search, a note kept
+after closing and reopening VedaBase (saved while it still ran with
+administrator rights), no hang on exit, the fonts, the swap folders, Active
+Setup's entry and the clean-up of `C:\`, and a second run that changes
+nothing. A reinstall with the README's *Custom* steps, after an uninstall,
+passed the same file and registry checks and, once the font fix was in,
+opened VedaBase and VaniBase with their diacritics. Found there and fixed:
+Windows PowerShell 5.1 refused to create a folder at `C:\`; Windows XP mode
+made every start ask for administrator rights; a stale recent-file entry;
 blank pages after an uninstall and reinstall in one sign-in (the fonts).
+[windows-test-2026-10.md](windows-test-2026-10.md) has the details.
 
-**Not yet verified:** a real Mac; a second account, a standard user and an
-accepted restart on Windows; a real uninstall and reinstall with the font
-reload in place (the reload itself ran on the test PC and the blank pages
-were fixed by the same steps by hand); WineHQ bug 60494 on Apple Silicon; and
-whether Windows itself needs the `VedaBase_25.nfo` link.
+**Not yet verified:** a real Mac; WineHQ bug 60494 on Apple Silicon; and on
+Windows: a second account, a standard user, an accepted restart, a note saved
+without administrator rights, a real uninstall and reinstall with the font
+reload in place (the reload itself ran on the test PC, and the same steps by
+hand fixed the blank pages), the *"Windows protected your PC"* and
+*"Open File – Security Warning"* messages, Windows 10, Arm and non-English
+Windows, and whether Windows itself needs the `VedaBase_25.nfo` link.
 
 ## The license you accept
 

@@ -19,8 +19,11 @@ file, `CLAUDE.md`, `HANDOFF.md`, `docs/handoffs/`, `.claude/`, `.githooks/` and
   archival copy, and forbids "on-line system" use (`docs/how-it-works.md`,
   "The license you accept"). Write nothing that implies wider rights.
 - **Say what was tested, no more.** Linux is tested end to end. macOS has run
-  only as a simulation under bash 3.2. Windows has never run on Windows. The
-  README and the docs must not claim more than that.
+  only as a simulation under bash 3.2. ~~Windows has never run on Windows.~~
+  **► Windows has run on one Windows 11 Home 25H2 PC (2026-10-20), not yet in
+  a second account, as a standard user or on Windows 10;
+  `docs/windows-test-2026-10.md` lists what passed and what was not tried.**
+  The README and the docs must not claim more than that.
 
 ## Start here
 

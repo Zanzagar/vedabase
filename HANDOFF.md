@@ -1,9 +1,10 @@
 # HANDOFF — the living state of the VedaBase installers
 
 Corrected in place (old text struck through). The newest file in `docs/handoffs/` is the
-latest session's brief; this file is what is true. It is for agents and Corey, not for the
-devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Download ZIP"
-(~~a clone or a collaborator still sees it~~ **► anyone browsing the public repository sees it**).
+latest session's brief; this file is what is true. It is for agents and the maintainer,
+not for the devotees the installers go to: `.gitattributes` keeps it out of GitHub's
+"Download ZIP" (~~a clone or a collaborator still sees it~~ **► anyone browsing the
+public repository sees it**).
 
 ## What this is
 
@@ -13,9 +14,10 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   (`manifest/drive-files.tsv`): Linux and WSL (portable Wine 11.0, unattended), macOS
   (Gcenx Wine 11.0_1; the user clicks the wizard) and Windows 10/11 (native,
   PowerShell 5.1).
-- Corey asked for it on 2026-10-19, after Tāraka dāsa offered him the program. Corey
-  will give the repository and its documentation to Tāraka, who shares it with other
-  devotees, many of them not technical. `README.md` and `docs/` are written for them.
+- The maintainer asked for it on 2026-10-19, after the devotee who shares the installers
+  offered him the program. The maintainer will give the repository and its documentation
+  to that devotee, who shares it with other devotees, many of them not technical.
+  `README.md` and `docs/` are written for them.
 - Never commit the program, the infobases, the fonts or anything an install produced
   (`.gitignore`). They belong to the Bhaktivedanta Archives and the BBT; the 2003
   licence allows one host computer and one user at a time plus an archival copy, and
@@ -25,16 +27,21 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
-  claude-harness adoption (73c9683, cb405ea)**, pushed to the private GitHub repository
-  `Zanzagar/vedabase`.
-- **Public since 2026-10-20** (Corey, 2026-10-20: *"Make it public so taraka prabhu can see
-  it"*), with the README's opening rewritten for visitors and the GitHub "About" filled
-  in. He will make it private again, shared with Tāraka's GitHub account, or remove it at
-  Tāraka's request. Its history shows Corey's commit email, journel paths and two early
-  remarks about Tāraka's messages; no credentials.
-- **claude-harness adopted** 2026-10-20 under Corey's standing decision of 2026-09-28:
-  AGENTS.md, CLAUDE.md, `.claude/settings.json`, `docs/handoffs/`, the commit gate
-  (`core.hooksPath` set in journel's clone; a clone elsewhere, such as Atman's, runs
+  claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
+  (9eefebf, 63c0764, 37d4adb, 6151aa1, d9b112d)**, pushed to the ~~private~~ **► public**
+  GitHub repository `Zanzagar/vedabase`.
+- **Public since 2026-10-20** (the maintainer's decision, so that the devotee who shares
+  the installers can see it), with the README's opening rewritten for visitors and the
+  GitHub "About" filled in. The maintainer will make it private again, shared with that
+  devotee's GitHub account, or remove it at his request. Its history shows the
+  maintainer's commit email, journel paths and two early remarks about that devotee's
+  messages; no credentials. **► Since 2026-10-20 this file names roles, not people or
+  accounts. AGENTS.md and the frozen handoffs still name the maintainer, that devotee and
+  journel's account (the 2026-10-20-0405 handoff also names a possible Mac tester), and the
+  README's thanks and `docs/sources.md` name that devotee: the maintainer's call.**
+- **claude-harness adopted** 2026-10-20 under the maintainer's standing decision of
+  2026-09-28: AGENTS.md, CLAUDE.md, `.claude/settings.json`, `docs/handoffs/`, the commit
+  gate (`core.hooksPath` set in journel's clone; a clone elsewhere, such as Atman's, runs
   `git config core.hooksPath .githooks` once), grill-gate CI green, squash merges set to
   PR title / PR body. All of it export-ignored.
 - **The review is closed.** Workflow `wf_efcb88f5-f2e` (five lenses, 68 findings, one
@@ -57,41 +64,55 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   2026-10-20 on Atman (Windows 11 Home 25H2, Windows PowerShell 5.1.26100), by the
   Atman session: the elevated phase stopped before any download, because 5.1's
   `New-Item -Force` refuses `C:\`; fixed in 9eefebf, ~~re-run pending~~.** **► Second
-  run (41bc3f3): every `docs/testing.md` check passed, with *Complete* chosen in the
-  wizard (it is pre-selected). Found and fixed: Windows XP compatibility mode made every
-  start of Views.exe demand administrator rights (error 740), and Folio closed normally
-  without it, so the installer no longer sets it, removes an earlier version's setting
-  and flushes the compatibility cache; the wizard steps (a media player or "Pick an app"
-  opens for INTRO.WAV, no Fonts window, restart prompts Cancel then OK, a pre-filled
-  name); a stale recent-file entry Install.exe writes. ~~OPEN: after uninstalling,
-  a *Custom* reinstall (63c0764) showed blank panes; the cause (Custom, or the uninstall)
-  is unknown.~~ **► Solved by the Atman session: not Custom (its files, system DLLs and
-  registry matched journel's working install). The 2003 uninstaller deletes the font
-  files; the fonts Register-Fonts had loaded into that Windows sign-in stayed loaded but
-  unusable, and the reinstall did not reload them, so everything drawn in VedaBase's own
-  fonts was blank until the next sign-in. Register-Fonts now unloads and reloads all 51
-  and broadcasts WM_FONTCHANGE (the same steps fixed it by hand on Atman).** **► Verified
-  on Atman (Windows PowerShell 5.1), no reboot or sign-out: Remove-OldCompatMode removed
-  a planted XP layer and VedaBase then opened with no UAC; the transcripts end cleanly;
-  after 6151aa1 each font is loaded exactly once and VedaBase and VaniBase render. Not
-  re-run with the fix: a real uninstall and reinstall in one sign-in; d9b112d's change
-  (warn when the cache flush returns False) has not run on Windows. The session's final
-  report: `/home/corey/projects/vedabase-testing/evidence/REPORT.md` on Atman.** The tester's report and evidence are on Atman in
-  `/home/corey/projects/vedabase-testing/evidence/`. Not run there: a second account, a
-  standard user, an accepted restart, a note saved without elevation, SmartScreen.**
+  run (41bc3f3): ~~every `docs/testing.md` check passed~~ ► the seven "Every system"
+  checks of `docs/testing.md` and 35 file and registry checks passed, with *Complete*
+  chosen in the wizard (it is pre-selected). Found and fixed: Windows XP compatibility
+  mode made every start of Views.exe demand administrator rights (error 740), and Folio
+  closed normally without it, so the installer no longer sets it, removes an earlier
+  version's setting and flushes the compatibility cache; the wizard steps (a media player
+  or "Pick an app" opens for INTRO.WAV, no Fonts window, restart prompts Cancel then OK,
+  a pre-filled name); a stale recent-file entry Install.exe writes.** ~~OPEN: after
+  uninstalling, a *Custom* reinstall (63c0764) showed blank panes; the cause (Custom, or
+  the uninstall) is unknown.~~ **► Solved by the Atman session: not Custom (its files,
+  system DLLs and registry matched journel's working install). The 2003 uninstaller
+  deletes the font files; the fonts Register-Fonts had loaded into that Windows sign-in
+  stayed loaded but unusable, and the reinstall did not reload them, so everything drawn
+  in VedaBase's own fonts was blank until the next sign-in. Register-Fonts now unloads
+  and reloads all 51 and broadcasts WM_FONTCHANGE (the same steps fixed it by hand on
+  Atman).** **► Verified on Atman (Windows PowerShell 5.1), no reboot or sign-out:
+  Remove-OldCompatMode removed a planted XP layer and VedaBase then opened with no UAC;
+  the transcripts end cleanly; after 6151aa1 each font is loaded exactly once and
+  VedaBase and VaniBase render. Not re-run with the fix: a real uninstall and reinstall
+  in one sign-in; d9b112d's change (warn when the cache flush returns False) has not run
+  on Windows.**
+- **2026-10-20: Windows, what is still open.** Devotee-facing summary of the Atman runs:
+  [`docs/windows-test-2026-10.md`](docs/windows-test-2026-10.md). Run 3 (63c0764,
+  *Custom* after an uninstall) matched the README's wizard steps and passed the 35 file
+  and registry checks. The evidence (the tester's report, logs and screenshots) stays on
+  the test PC (`~/projects/vedabase-testing/evidence/` in its WSL), not in this
+  repository: it names accounts and holds private screenshots. Not yet run on Windows: a
+  full uninstall and *Custom* reinstall in one sign-in on d9b112d or later; a second
+  account (Active Setup there); a standard-user install; an accepted restart; a note
+  saved while Views.exe runs unelevated; d9b112d's warning; an error inside the
+  administrator window (9eefebf's single pause; only an unanswered UAC was re-tested);
+  opening the File menu's recent-file entry (after run 3 the registry already held only
+  the corrected `File1`); the notes restore across a wizard re-run; the free-space
+  filler (not needed on Atman); SmartScreen and the "Open File – Security Warning"
+  (never shown: the ZIP was unblocked first); Windows 10, Arm, a non-English Windows.
 - **Found this session, worth knowing:** Install.exe's launcher checks free space in
   32-bit arithmetic and refuses when the free space sits just above a multiple of
   4 GiB (the installers now write a 128 MiB filler first; `docs/how-it-works.md`).
   Bash's EXIT trap sees status 0 on SIGINT/SIGHUP unless INT/HUP/TERM traps exit.
-- **journel's own install**: home `/journel/s0/cjh5690/vedabase` (made 0700 on
+- **journel's own install**: home `/journel/s0/$USER/vedabase` (made 0700 on
   2026-10-20: it was readable by every account on journel; refreshed with the merged
   code the same day, `doctor` passing), launcher
   `~/.local/bin/vedabase`, and `~/.config/vedabase/home` remembers the home. A
-  from-scratch reinstall needs `./install.sh --home /journel/s0/cjh5690/vedabase`. Run
+  from-scratch reinstall needs `./install.sh --home /journel/s0/$USER/vedabase`. Run
   `vedabase doctor` before assuming it is broken. Never test against it.
-- **Archive** on journel: `/journel/s1/cjh5690/archive/vedabase/` holds the Drive files
-  (with Tāraka's `VedaBase_CrossOver_Installation.pdf` and Ekanatha's `README.docx`), a
-  backup of the working prefix, both Wine builds, and
+- **Archive** on journel: `/journel/s1/$USER/archive/vedabase/` holds the Drive files
+  (with the CrossOver guide `VedaBase_CrossOver_Installation.pdf`, which the devotee who
+  shares the installers passed on, and Ekanatha's `README.docx`), a backup of the working
+  prefix, both Wine builds, and
   `session-7f53bfb5-2026-10-19/` (that session's transcript, workflow journals and agent
   transcripts, its scratch scripts and screenshots, and the bash 3.2, ShellCheck and
   PowerShell builds the tests use).
@@ -100,31 +121,36 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
    panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
-   **Windows:** the checks the Atman runs skipped (a second account, a standard user, an
-   accepted restart, the font reload in an uninstall-and-reinstall run). **Mac:** a field tester (Corey suggests Anandini Lalita, through
-   Tāraka), following `docs/testing.md`.
-   Everything Windows-specific (the elevated phase, Active Setup, the notes restore, the
-  free-space filler) has only been read and parsed, never run.
-2. ~~**Corey decides how to share it.** The repository is private, so the README's
-   "Code → Download ZIP" and its `git clone` line fail for anyone else. Options: make it
-   public (seven early commits name journel and the account, and the agent files carry
-   journel paths; export-ignore only keeps them out of the ZIP), send a ZIP, or publish a
-   fresh public repository from `git archive` output (no history, no agent files). It
-   carries Ekanatha's Drive file IDs either way.~~ **► Decided 2026-10-20: public (see
-   State). If Tāraka asks for it to be private, make it private and add his GitHub
-   account as a collaborator; the README's download steps then work only for him.**
-3. Corey decides whether to mirror the pinned Gcenx Wine as a release asset, so the Mac
-   installer does not fall back to whatever Gcenx publishes next (review finding
+   **Windows:** the checks still open in State ("Windows, what is still open").
+   **Mac:** a field tester with a Mac (the maintainer has someone in mind), following
+   `docs/testing.md`.
+   ~~Everything Windows-specific (the elevated phase, Active Setup, the notes restore, the
+  free-space filler) has only been read and parsed, never run.~~ **► 2026-10-20: the
+   elevated phase ran on Atman and Active Setup's entry was checked there; what is still
+   unrun is in State.**
+2. ~~**The maintainer decides how to share it.** The repository is private, so the
+   README's "Code → Download ZIP" and its `git clone` line fail for anyone else. Options:
+   make it public (seven early commits name journel and the account, and the agent files
+   carry journel paths; export-ignore only keeps them out of the ZIP), send a ZIP, or
+   publish a fresh public repository from `git archive` output (no history, no agent
+   files). It carries Ekanatha's Drive file IDs either way.~~ **► Decided 2026-10-20:
+   public (see State). If the devotee who shares the installers asks for it to be
+   private, make it private and add his GitHub account as a collaborator; the README's
+   download steps then work only for him.**
+3. The maintainer decides whether to mirror the pinned Gcenx Wine as a release asset, so
+   the Mac installer does not fall back to whatever Gcenx publishes next (review finding
    security:5); ~~it depends on 2~~ possible now that the repository is public.
 4. Smaller, optional: curl's internal retries re-download the same span (linux-fresh:15);
    a Windows install whose master infobase is missing could copy the staged one into
    place instead of re-running the wizard (windows-ps51:2); `vedabase web` could reprint
-   the tunnel even on WSL's early return.
+   the tunnel even on WSL's early return; the finish phase repoints only the recent-file
+   list's `File1`, so an install where VedaBase was opened before that fix, which moves
+   the stale "4 Sh" entry to `File2`, keeps it (a harmless error dialog if clicked).
 
 ## Where the session records are
 
 Both sessions so far ran from `~/projects`, not from this folder, so their transcripts are
-under `~/.claude/projects/-home-cjh5690-projects/`: `7f53bfb5-c5f0-4cc2-ab2c-f894b3a323d4`
+under `~/.claude/projects/-home-$USER-projects/`: `7f53bfb5-c5f0-4cc2-ab2c-f894b3a323d4`
 built everything (workflows `wf_f94b032d-525`, Wine research; `wf_fdb69b90-1be`,
 cross-platform research; `wf_efcb88f5-f2e`, the review), and
 `7dc8950f-ca3e-4233-be0f-553ad6a93b38` closed the review. The first is also archived

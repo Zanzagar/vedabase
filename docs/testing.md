@@ -2,11 +2,17 @@
 
 The Linux installer was tested end to end on an Ubuntu 24.04 server in October
 2026. The macOS installer ran to completion under a real bash 3.2 on Linux,
-with the Mac-only commands stubbed. The Windows installer has only been parsed
-and partly exercised with PowerShell on Linux.
+with stand-ins for the commands that exist only on a Mac. The Windows
+installer was tested on one Windows 11 PC in October 2026. Its report,
+[windows-test-2026-10.md](windows-test-2026-10.md), says what passed there and
+which of the Windows checks below have not been run yet.
 
-Neither the Windows nor the macOS installer has run on its own system yet. Do
-that once with this list before relying on either.
+The macOS installer has not run on a Mac yet; before relying on it, someone
+should run it once on a real Mac and go through this list. On Windows, the
+checks most worth trying next are the ones not yet run: a second account, a
+standard (non-administrator) account, accepting the restart, saving a note now
+that VedaBase runs without administrator rights, and uninstalling and
+reinstalling without signing out of Windows.
 
 ## Every system
 
@@ -26,8 +32,9 @@ that once with this list before relying on either.
    `Record: 1 / 518,550`.
 6. **Close Folio** with File → Exit. Note whether it closes promptly: a hang on
    exit is the known Folio problem on Windows 10/11.
-7. Make a highlight or a note, close, reopen, and check it is still there.
-   That proves the shadow file is writable.
+7. Make a highlight or a note, close VedaBase (answer **Yes** when it asks
+   whether to save changes), reopen it, and check it is still there. That
+   proves the shadow file is writable.
 
 ## Windows only
 
@@ -62,9 +69,11 @@ that once with this list before relying on either.
     "Updating Index...".
 - Accept the installer's restart prompt once, on purpose, then run the `.cmd`
   again. It should finish cleanly.
-- Uninstall VedaBase (*Settings → Apps*), delete its folder, and install it
-  again without signing out of Windows. VedaBase must still show text (an
-  earlier version left its pages blank until the next sign-in).
+- Copy your notes (the `.sdw` files in `C:\Bhaktivedanta VedaBase 2003\Nfo`)
+  somewhere safe first: uninstalling deletes the VedaBase one. Then uninstall
+  VedaBase (*Settings → Apps*), delete its folder, and install it again
+  without signing out of Windows. VedaBase must still show text (an earlier
+  version left its pages blank until the next sign-in).
 - Note whether a media player, or Windows asking which app to use, opened at
   the start (the installer plays `C:\Spec\INTRO.WAV`), and record the restart
   messages word for word.

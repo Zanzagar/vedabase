@@ -27,11 +27,11 @@ undone ([details](#what-the-installers-add)):
 
 | Your computer | What to run | Status |
 | --- | --- | --- |
-| Windows 10 or 11 | double-click `Install-VedaBase-Windows.cmd` | tested on one Windows 11 PC |
+| Windows 10 or 11 | double-click `Install-VedaBase-Windows.cmd` | tested on one Windows 11 PC ([report](docs/windows-test-2026-10.md)) |
 | Linux (Ubuntu, Debian; also WSL) | `./install.sh` in a terminal | tested end to end on Ubuntu 24.04 |
 | macOS (Intel or Apple Silicon) | double-click `Install-VedaBase-Mac.command` | **not yet tried on a real Mac** |
 
-The Windows installer has run on one Windows 11 PC so far, and the macOS
+The Windows installer has been tested on one Windows 11 PC so far, and the macOS
 installer has only been checked as far as possible without a Mac. If you are
 among the first to try one, please tell whoever gave you this installer how it went;
 [docs/testing.md](docs/testing.md) lists what to look at, and
