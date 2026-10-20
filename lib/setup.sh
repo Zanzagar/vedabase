@@ -177,7 +177,7 @@ vb_postinstall() {
 # folder. The .sdw is copied fresh only once, because it holds your own notes.
 vb_add_vanibase() {
   local nfo=$VB_APP_DIR/Nfo src=$VB_DOWNLOADS/VaniBase/VaniBase_25.nfo
-  if [[ $(stat -c %s -- "$nfo/VaniBase_25.nfo" 2>/dev/null) != "$(stat -c %s -- "$src")" ]]; then
+  if [[ ! -f $nfo/VaniBase_25.nfo || $(vb_size "$nfo/VaniBase_25.nfo") != "$(vb_size "$src")" ]]; then
     vb_say "Adding VaniBase 25"
     cp -f -- "$src" "$nfo/VaniBase_25.nfo"
   fi

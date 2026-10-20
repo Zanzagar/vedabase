@@ -33,7 +33,9 @@ vb_die()  { printf '%serror:%s %s\n' "$_vb_b$_vb_red" "$_vb_0" "$*" >&2; exit 1;
 # helper tools. On journel it defaults to the local NVMe disk, because $HOME
 # there is a 40 GiB NFS quota and Wine handles file locking on NFS badly.
 vb_default_home() {
-  if [[ -d /journel/s0/$USER && -w /journel/s0/$USER ]]; then
+  if [[ $(uname -s) == Darwin ]]; then
+    printf '%s\n' "$HOME/Library/Application Support/VedaBase"
+  elif [[ -d /journel/s0/$USER && -w /journel/s0/$USER ]]; then
     printf '%s\n' "/journel/s0/$USER/vedabase"
   else
     printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/vedabase"
@@ -68,6 +70,12 @@ vb_env() {
 }
 
 vb_installed() { [[ -f $VB_APP_DIR/Views.exe ]]; }
+
+# Portable between GNU (Linux) and BSD (macOS) userlands.
+vb_size() { wc -c <"$1" | tr -d ' '; }
+vb_sha256() {
+  if command -v sha256sum >/dev/null; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi
+}
 
 # Wine processes that belong to this prefix (wineserver -k would also do, but
 # this lets callers ask without starting a wineserver).

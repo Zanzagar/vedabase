@@ -5,8 +5,8 @@
 VB_DRIVE_URL='https://drive.usercontent.google.com/download?export=download&confirm=t&id='
 
 vb_file_ok() { # PATH SIZE SHA256
-  [[ -f $1 && $(stat -c %s -- "$1") == "$2" ]] || return 1
-  [[ $(sha256sum <"$1" | cut -d' ' -f1) == "$3" ]]
+  [[ -f $1 && $(vb_size "$1") == "$2" ]] || return 1
+  [[ $(vb_sha256 <"$1") == "$3" ]]
 }
 
 # Copy one file from VEDABASE_SOURCE (a directory, or host:dir over ssh) or
@@ -16,7 +16,8 @@ vb_fetch_one() { # ID REL OUT
   if [[ -n $src && -d $src ]]; then
     cp -f -- "$src/$rel" "$out"
   elif [[ -n $src ]]; then
-    rsync -s --partial -- "$src/$rel" "$out"
+    # host:dir. ssh + cat, quoted for the remote shell: macOS's rsync is too old for -s.
+    ssh -- "${src%%:*}" "cat -- $(printf '%q' "${src#*:}/$rel")" >"$out"
   else
     vb_say "Downloading $rel"
     local progress=-sS
