@@ -7,10 +7,23 @@ with two infobases:
   conversations and the rest of his corpus.
 - **VaniBase 25:** works by other devotees.
 
-Each installer downloads Ekanatha dāsa's distribution of the files, checks
-every file, and runs the original 2003 installer. It then takes care of the
-steps that otherwise leave VedaBase failing to open or showing garbled
-diacritics (see [What the installers add](#what-the-installers-add)).
+Each installer downloads Ekanatha dāsa's distribution of the files and runs
+the original 2003 installer. Then it takes care of what that installer leaves
+undone ([details](#what-the-installers-add)):
+
+- **One file to double-click** on Windows and macOS, one command on Linux.
+- **Every file is checked** against its SHA-256 before it is used.
+- **VedaBase opens the first time.** The installers add the name the VedaBase
+  icon looks for, so there is no *"master infobase … could not be found"*.
+- **Diacritics display correctly.** The 51 Sanskrit fonts and Folio's display
+  settings are put in place, on Windows for every account on the computer.
+- **Your notes are protected.** Running an installer again leaves your
+  highlights and notes alone (the Windows installer keeps them even through a
+  repair), and a damaged backup never replaces a working installation.
+- **The 2003 installer's quirks are handled:** its restart prompt, its intro
+  sound under Wine, and a bug that can make it refuse to start on a large disk.
+- **On Linux it runs unattended**, and can show VedaBase in a web browser on a
+  computer with no screen.
 
 | Your computer | What to run | Status |
 | --- | --- | --- |
@@ -21,13 +34,15 @@ diacritics (see [What the installers add](#what-the-installers-add)).
 The Windows and macOS installers have been checked as far as possible without
 those systems, but not yet run on them. If you are among the first to try one,
 please tell whoever gave you this installer how it went;
-[docs/testing.md](docs/testing.md) lists what to look at.
+[docs/testing.md](docs/testing.md) lists what to look at, and
+[What's next](#whats-next) what is planned.
 
-**Getting the files.** Download the ZIP you were given. On GitHub that is
-**Code → Download ZIP**. On Windows, right-click the ZIP before unzipping,
-choose **Properties**, tick **Unblock**, and click **OK**. Then unzip it (on
-Windows: right-click → *Extract All*). Keep the unzipped folder whole, because
-each installer reads the `manifest` and `lib` folders next to it.
+**Getting the files.** On <https://github.com/Zanzagar/vedabase>, choose
+**Code → Download ZIP**, or use the ZIP you were given. On Windows, right-click
+the ZIP before unzipping, choose **Properties**, tick **Unblock**, and click
+**OK**. Then unzip it (on Windows: right-click → *Extract All*). Keep the
+unzipped folder whole, because each installer reads the `manifest` and `lib`
+folders next to it.
 
 Each installer downloads about 1.1 GB and needs about 4 GB of free space. It
 checks every file against the SHA-256 in `manifest/drive-files.tsv` before
@@ -298,6 +313,21 @@ Each installer runs the original installer, then takes care of these:
 what was verified. [docs/sources.md](docs/sources.md) summarizes the original
 instructions. [docs/testing.md](docs/testing.md) is the checklist for a first
 run on a new system.
+
+## What's next
+
+The installers get better as reports come in:
+
+- **The first runs on Windows and macOS.** What a real PC and a real Mac show
+  will correct these steps wherever they differ.
+- **What Windows updates broke.** Some Folio features have stopped working on
+  newer Windows. Once it is known which, the installers can add workarounds,
+  as they already try to for the freeze on exit.
+- **Unicode text.** Text copied out of VedaBase uses the old Balaram encoding
+  (see [Copying text out](#copying-text-out)). A converter to standard Unicode
+  would make it usable in other programs, including AI tools.
+- **New releases.** When Ekanatha dāsa publishes a new VedaBase, the
+  installers need only an updated `manifest/drive-files.tsv`.
 
 ## License
 

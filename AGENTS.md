@@ -119,5 +119,8 @@ review gate stays disabled.
   `main`, no rewriting pushed commits; `git revert` fixes a goof). Stage
   explicit paths and check `git status --porcelain` before each commit.
   `.claude/settings.json` carries the deny/ask rules.
-- The repository is private until Corey decides how to share it.
+- **The repository is public** since 2026-10-20, so that Tāraka dāsa can see it;
+  Corey will make it private again (and share it with Tāraka's GitHub account)
+  or remove it at Tāraka's request. Write nothing in it that should not be
+  public, and keep the agent and test files export-ignored.
 - **Grilling gate:** every commit ends with a `Decided: <path>#<anchor>` trailer (the recorded decision it implements) or a `Fix:`/`Docs:`/`Chore:`/`Test:` trailer saying why; rule 14 of claude-harness `docs/git-hygiene.md`. `.githooks/commit-msg` refuses anything else once a clone has run `git config core.hooksPath .githooks` (once per clone), and `.github/workflows/grill-gate.yml` re-checks every new commit, and a pull request's description, in CI. <!-- grill-gate:pointer -->

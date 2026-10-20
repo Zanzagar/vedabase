@@ -3,7 +3,7 @@
 Corrected in place (old text struck through). The newest file in `docs/handoffs/` is the
 latest session's brief; this file is what is true. It is for agents and Corey, not for the
 devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Download ZIP"
-(a clone or a collaborator still sees it).
+(~~a clone or a collaborator still sees it~~ **► anyone browsing the public repository sees it**).
 
 ## What this is
 
@@ -27,6 +27,11 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)**, pushed to the private GitHub repository
   `Zanzagar/vedabase`.
+- **Public since 2026-10-20** (Corey, 2026-10-20: *"Make it public so taraka prabhu can see
+  it"*), with the README's opening rewritten for visitors and the GitHub "About" filled
+  in. He will make it private again, shared with Tāraka's GitHub account, or remove it at
+  Tāraka's request. Its history shows Corey's commit email, journel paths and two early
+  remarks about Tāraka's messages; no credentials.
 - **claude-harness adopted** 2026-10-20 under Corey's standing decision of 2026-09-28:
   AGENTS.md, CLAUDE.md, `.claude/settings.json`, `docs/handoffs/`, the commit gate
   (`core.hooksPath` set in journel's clone; a clone elsewhere, such as Atman's, runs
@@ -72,15 +77,17 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 1. One real run each on Windows (Atman) and on a Mac, following `docs/testing.md`.
    Everything Windows-specific (the elevated phase, Active Setup, the notes restore, the
   free-space filler) has only been read and parsed, never run.
-2. **Corey decides how to share it.** The repository is private, so the README's
+2. ~~**Corey decides how to share it.** The repository is private, so the README's
    "Code → Download ZIP" and its `git clone` line fail for anyone else. Options: make it
    public (seven early commits name journel and the account, and the agent files carry
    journel paths; export-ignore only keeps them out of the ZIP), send a ZIP, or publish a
    fresh public repository from `git archive` output (no history, no agent files). It
-   carries Ekanatha's Drive file IDs either way.
+   carries Ekanatha's Drive file IDs either way.~~ **► Decided 2026-10-20: public (see
+   State). If Tāraka asks for it to be private, make it private and add his GitHub
+   account as a collaborator; the README's download steps then work only for him.**
 3. Corey decides whether to mirror the pinned Gcenx Wine as a release asset, so the Mac
    installer does not fall back to whatever Gcenx publishes next (review finding
-   security:5); it depends on 2.
+   security:5); ~~it depends on 2~~ possible now that the repository is public.
 4. Smaller, optional: curl's internal retries re-download the same span (linux-fresh:15);
    a Windows install whose master infobase is missing could copy the staged one into
    place instead of re-running the wizard (windows-ps51:2); `vedabase web` could reprint
