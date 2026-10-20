@@ -8,12 +8,12 @@ pointed there too, so your own install, the `vedabase` launcher and
 `~/.config/vedabase` are never touched. Each prints `PASS`/`FAIL` lines and
 exits non-zero if a check failed.
 
-| Script | What it proves | Time |
+| Script | What it proves | Time (journel, with `VB_TEST_SOURCE`) |
 | --- | --- | --- |
-| `linux-e2e.sh` | a clean unattended Linux install; `doctor`; private permissions; the browser viewer (it connects, six wrong passwords do not lock you out, typing reaches Folio); `stop`; a backup restored with `--reinstall --restore` | ~5 min |
-| `interrupt.sh` | Ctrl-C and a closed terminal in the middle of the wizard leave nothing running; after SIGKILL the re-run cleans up; every re-run finishes the install | ~8 min |
+| `linux-e2e.sh` | a clean unattended Linux install; `doctor`; private permissions; the browser viewer (it connects, six wrong passwords do not lock you out, typing reaches Folio); `stop`; a backup restored with `--reinstall --restore`; damaged backups refused without touching the prefix | ~4 min |
+| `interrupt.sh` | Ctrl-C and a closed terminal in the middle of the wizard leave nothing running; after SIGKILL the re-run cleans up; every re-run finishes the install | ~6 min |
 | `rollback.sh` | the exit trap's rollback of a restore: install.sh's own functions against fake prefixes (rejected restore, interrupted swap, impossible rename); no install needed | seconds |
-| `mac-sim.sh` | `mac/install.sh` under a real bash 3.2 with the macOS commands shimmed and Linux Wine standing in, the wizard clicked by a script that never closes the Fonts window | ~2 min |
+| `mac-sim.sh` | `mac/install.sh` under a real bash 3.2 with the macOS commands shimmed and Linux Wine standing in, the wizard clicked by a script that never closes the Fonts window | ~1.5 min |
 
 Settings, as environment variables:
 
