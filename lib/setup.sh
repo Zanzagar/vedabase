@@ -17,6 +17,7 @@ VB_MASTER_SIZE=649011200
 vb_make_prefix() {
   vb_say "Creating the Wine prefix"
   mkdir -p "$VB_PREFIX"
+  chmod 700 "$VB_PREFIX" # your notes and the licensed files: yours only
   # winegstreamer= sidesteps a known hang while GStreamer plugins load. The
   # CrossOver report in the Drive folder: VedaBase crashed in a Windows 10
   # bottle, while 7 or XP worked. Install.exe first "opens" C:\Spec\intro.wav;
@@ -33,7 +34,7 @@ vb_make_prefix() {
   } >>"$VB_LOGS/wine.log" 2>&1 || vb_die "creating the Wine prefix failed; see $VB_LOGS/wine.log"
   # Wine links the Windows desktop to yours; Install.exe would put two Windows
   # shortcuts (.lnk) there, so give the prefix its own desktop folder.
-  local desktop="$VB_PREFIX/drive_c/users/$USER/Desktop"
+  local desktop="$VB_PREFIX/drive_c/users/$VB_USER/Desktop"
   if [[ -L $desktop ]]; then
     rm -f -- "$desktop"
     mkdir -p -- "$desktop"
@@ -103,6 +104,8 @@ vb_installer_stuck() { # LAST_SCREEN
 # Answer every wizard page. A page that does not move on within 20 s gets its
 # confirming key again (never its clicks, which would untick the boxes), up to
 # six times, since a key can be lost while Wine is still giving the page focus.
+# The copy runs in a window titled "Installing Files", whose only button is
+# Cancel, so that title must never join the list below.
 vb_run_installer() { # REGISTERED_NAME
   local name=$1 log=$VB_LOGS/installer.log wid title acted last='' seen='' tries=0 typed=0
   local deadline=$((SECONDS + 1800)) idle_since=$SECONDS
@@ -180,6 +183,8 @@ vb_check_install() {
     vb_die "Install.exe finished but Views.exe is missing; see $VB_LOGS/installer.log"
   [[ -f "$VB_APP_DIR/Nfo/$VB_MASTER_NFO" && $(vb_size "$VB_APP_DIR/Nfo/$VB_MASTER_NFO") == "$VB_MASTER_SIZE" ]] ||
     vb_die "the VedaBase infobase was not installed completely (was 'VedaBase Master Files' ticked?); see $VB_LOGS/installer.log"
+  [[ -f "$VB_APP_DIR/Nfo/Bhaktivedanta Vedabase 2003.sdw" ]] ||
+    vb_die "Install.exe did not install the VedaBase shadow file; see $VB_LOGS/installer.log"
   for f in "$VB_DOWNLOADS"/Fonts/*; do
     [[ -n $(find "$VB_PREFIX/drive_c/windows/Fonts" -maxdepth 1 -iname "${f##*/}" -print 2>/dev/null) ]] ||
       missing=$((missing + 1))
@@ -208,13 +213,20 @@ vb_postinstall() {
   : >"$VB_PREFIX/.vedabase-installed"
 }
 
-# A prefix left by an interrupted run: finish it if Install.exe had copied
-# everything, otherwise move it aside (it may hold notes) and start again.
+# A prefix left by an interrupted run. Whatever that run left running (the
+# wizard, Wine) is ended first. If Install.exe got as far as its last file
+# (irunin.ini) and the infobase is whole, the install is finished; otherwise
+# the prefix is moved aside (it may hold notes) and the install starts again.
 vb_recover_prefix() {
   [[ -e $VB_PREFIX ]] || return 0
-  if [[ -f $VB_APP_DIR/Views.exe && -f "$VB_APP_DIR/Nfo/$VB_MASTER_NFO" &&
+  wineserver -k >/dev/null 2>&1 || true
+  wineserver -w >/dev/null 2>&1 || true
+  if [[ -f $VB_APP_DIR/Views.exe && -f $VB_APP_DIR/irunin.ini && -f "$VB_APP_DIR/Nfo/$VB_MASTER_NFO" &&
     $(vb_size "$VB_APP_DIR/Nfo/$VB_MASTER_NFO") == "$VB_MASTER_SIZE" ]]; then
     vb_say "Finishing an install that was interrupted"
+    # The restart the wizard asks for, which the interrupted run never reached.
+    wineboot --restart >>"$VB_LOGS/installer.log" 2>&1 || true
+    wineserver -w >/dev/null 2>&1 || true
     vb_check_install
     vb_postinstall
     return 0
@@ -222,7 +234,6 @@ vb_recover_prefix() {
   local aside
   aside="$VB_PREFIX.unfinished-$(date +%Y%m%d-%H%M%S)"
   vb_warn "moving an unfinished install aside to $aside (delete it once you no longer need anything in it)"
-  wineserver -k >/dev/null 2>&1 || true
   mv -- "$VB_PREFIX" "$aside"
 }
 

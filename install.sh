@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Install the Bhaktivedanta VedaBase desktop client (Folio Views 4.3, VedaBase 25
-# and VaniBase 25) on Linux or WSL, under a pinned portable Wine. No root needed.
+# and VaniBase 25) on Linux or WSL, under a pinned portable Wine. It runs as you;
+# root is needed only for the one-time apt-get of the tools the README lists.
 # Safe to re-run: finished steps are skipped, so it doubles as "update/repair".
 set -euo pipefail
 
@@ -23,7 +24,8 @@ Running it accepts the Bhaktivedanta Archives license that Install.exe shows
                    a directory, or host:dir over ssh, laid out like the Drive
                    folders (Install.exe, Fonts/, Nfo/, Spec/, VaniBase/)
   --restore FILE   unpack a prefix saved by 'vedabase backup' instead of
-                   running Install.exe
+                   running Install.exe (only a backup you made yourself: it
+                   holds programs that will run as you)
   --name NAME      name to register in the installer (default: your full name)
   --no-vanibase    leave out VaniBase 25 (393 MB)
   --reinstall      delete the existing prefix first (your Folio notes and
@@ -79,7 +81,17 @@ vb_init_paths
   vb_die "$VB_HOME/app exists and is not VedaBase's; choose another --home"
 mkdir -p "$VB_LOGS" "$VB_CONFIG_DIR"
 printf '%s\n' "$VB_HOME" >"$VB_CONFIG_DIR/home"
-trap 'rc=$?; ((rc == 0)) || vb_warn "install.sh did not finish; logs are in ${VB_LOGS:-}. Running it again continues where it stopped."' EXIT
+in_wizard=0 # set while the hidden display and the wizard run
+on_exit() {
+  local rc=$?
+  ((rc == 0)) && return
+  if ((in_wizard)); then # leave nothing running in the background
+    wineserver -k >/dev/null 2>&1 || true
+    vb_display_stop install || true
+  fi
+  vb_warn "install.sh did not finish; logs are in ${VB_LOGS:-}. Running it again continues where it stopped."
+}
+trap on_exit EXIT
 vb_say "Installing into $VB_HOME"
 
 skip_vani=''
@@ -88,9 +100,13 @@ if [[ -z $restore ]] && ! vb_installed; then
   # Decide these before downloading 1.1 GB.
   [[ -n ${VEDABASE_INSTALL_DISPLAY:-} || -n ${DISPLAY:-} ]] || vb_can_run_xvnc ||
     vb_die "Install.exe needs a display. Run once:  sudo apt-get install x11-xkb-utils xkb-data  (or run this from a desktop session)"
+  # About 4 GB in all, less whatever an earlier run already put here.
+  have_kb=$(du -sk "$VB_HOME/wine" "$VB_DOWNLOADS" "$VB_PREFIX" 2>/dev/null | awk '{s += $1} END {print s + 0}') ||
+    true # du fails on the folders a fresh install has not made yet; awk still sums the rest
+  need_kb=$((4 * 1024 * 1024 - have_kb))
   avail_kb=$(df -Pk "$VB_HOME" 2>/dev/null | awk 'NR == 2 {print $4}') || avail_kb=''
-  [[ -z $avail_kb ]] || ((avail_kb >= 4 * 1024 * 1024)) ||
-    vb_die "$VB_HOME needs about 4 GB free (it has $((avail_kb / 1024)) MB); choose another place with --home"
+  [[ -z $avail_kb ]] || ((avail_kb >= need_kb)) ||
+    vb_die "$VB_HOME needs about $((need_kb / 1024)) MB more free space (it has $((avail_kb / 1024)) MB); choose another place with --home"
 fi
 
 vb_ensure_pkgs deps "${VB_PKGS_WINE[@]}"
@@ -103,6 +119,8 @@ vb_ensure_wine
 vb_env
 
 if ((reinstall)) && [[ -d $VB_PREFIX ]]; then
+  [[ -f $VB_PREFIX/system.reg || -d $VB_PREFIX/drive_c || -z $(ls -A -- "$VB_PREFIX") ]] ||
+    vb_die "$VB_PREFIX is not a Wine prefix, so it is not deleted; move it away and run again"
   vb_wine_stop
   vb_say "Removing the old prefix"
   rm -rf -- "$VB_PREFIX"
@@ -111,14 +129,22 @@ fi
 if [[ -n $restore ]]; then
   [[ ! -e $VB_PREFIX ]] || vb_die "$VB_PREFIX already exists; add --reinstall to replace it"
   vb_say "Restoring the prefix from $restore"
-  # Only the prefix: a backup must not be able to replace Wine or these scripts.
-  tar -C "$VB_HOME" -xzf "$restore" prefix || vb_die "$restore is not a backup made by 'vedabase backup'"
+  # Unpacked aside and only its prefix/ kept: a backup must not be able to
+  # replace Wine, the helper tools or these scripts.
+  stage=$(mktemp -d "$VB_HOME/restore.XXXXXX")
+  if ! tar -C "$stage" -xzf "$restore" || [[ ! -d $stage/prefix || -L $stage/prefix ]]; then
+    rm -rf -- "$stage"
+    vb_die "$restore is not a backup made by 'vedabase backup'"
+  fi
+  mv -T -- "$stage/prefix" "$VB_PREFIX"
+  rm -rf -- "$stage"
   vb_installed || vb_die "$restore did not contain a finished install"
 fi
 
 if ! vb_installed; then
   vb_fetch_files '' "$skip_vani"
   vb_recover_prefix # finishes an interrupted install, or moves it aside
+  vb_display_stop install # a hidden display an interrupted run left behind
 fi
 if ! vb_installed; then
   saved_display=${DISPLAY-} saved_xauth=${XAUTHORITY-}
@@ -127,23 +153,27 @@ if ! vb_installed; then
     export DISPLAY=$VEDABASE_INSTALL_DISPLAY
     vb_ensure_pkgs deps xdotool
   elif vb_can_run_xvnc; then
+    in_wizard=1
     vb_display_start install 1600x1000 None
   else
     vb_warn "x11-xkb-utils is not installed, so the installer runs on your screen ($DISPLAY). Leave the mouse alone until it finishes."
     vb_ensure_pkgs deps xdotool
   fi
-  [[ -n $name ]] || name=$(getent passwd "${USER:-$(id -un)}" | cut -d: -f5 | cut -d, -f1) || true
+  [[ -n $name ]] || name=$(getent passwd "$VB_USER" | cut -d: -f5 | cut -d, -f1) || true
+  in_wizard=1
   vb_make_prefix
   vb_stage_installer
-  vb_run_installer "${name:-${USER:-VedaBase reader}}"
+  vb_run_installer "${name:-$VB_USER}"
   vb_check_install
   vb_postinstall
   vb_display_stop install
+  in_wizard=0
   if [[ -n $saved_display ]]; then export DISPLAY=$saved_display; else unset DISPLAY; fi
   if [[ -n $saved_xauth ]]; then export XAUTHORITY=$saved_xauth; else unset XAUTHORITY; fi
 else
   vb_say "Folio Views is installed"
 fi
+chmod 700 "$VB_PREFIX" # also tightens installs made before this was done
 
 if ((vanibase)); then
   vani=$VB_APP_DIR/Nfo/VaniBase_25.nfo

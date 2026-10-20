@@ -59,6 +59,9 @@ $MasterSize = 649011200
 $Cache = Join-Path $env:ProgramFiles 'VedaBase-Setup'
 $StagedList = Join-Path $Cache 'staged-in-C-root.txt'
 $MachineDone = Join-Path $Cache 'machine-phase.done'
+$SdwBackup = Join-Path $Cache 'sdw-backup'
+$SdwPending = Join-Path $Cache 'sdw-restore.pending'
+$CachedDefaults = Join-Path $Cache 'vedabase-defaults.reg'
 $StageItems = @('C:\Install.exe', 'C:\Fonts', 'C:\Nfo', 'C:\Spec')
 $DriveUrl = 'https://drive.usercontent.google.com/download?export=download&confirm=t&id='
 $ActiveSetup = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{8C9EE47A-5102-4B2C-B476-0212DFBB3EC0}'
@@ -110,7 +113,7 @@ function Invoke-UserPhase {
   $sac = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction SilentlyContinue
   if ($sac -and $sac.PSObject.Properties['VerifiedAndReputablePolicyState'] -and $sac.VerifiedAndReputablePolicyState -eq 1) {
     Warn ('Smart App Control is on, so Windows may block the 2003 VedaBase programs. ' +
-      'See "Smart App Control" in README.md before turning it off: on many PCs it cannot be turned back on.')
+      'See "Smart App Control" in README.md before turning it off.')
   }
   $free = (Get-PSDrive -Name C).Free
   if ($free -lt 3GB) { Fail ('Drive C: needs at least 3 GB free (it has {0:N1} GB).' -f ($free / 1GB)) }
@@ -129,7 +132,7 @@ function Invoke-UserPhase {
   # Wait for that one process only (Start-Process -Wait would also wait for
   # anything the installer leaves running, such as a media player).
   $proc.WaitForExit()
-  $done = (Test-Path -LiteralPath $MachineDone) -and ((Get-Content -LiteralPath $MachineDone -Raw).Trim() -eq $token)
+  $done = (Test-Path -LiteralPath $MachineDone) -and (([string](Get-Content -LiteralPath $MachineDone -Raw)).Trim() -eq $token)
   if (-not $done) {
     Fail "The administrator window did not finish. Its log is $Cache\install.log; run this installer again to continue."
   }
@@ -277,8 +280,10 @@ function Complete-Install([switch]$SkipFonts) {
         Say 'Adding VaniBase 25'
         Copy-Item -LiteralPath "$src\VaniBase_25.nfo" -Destination $nfo -Force
       }
-      # Copied once only: your notes and highlights live in the shadow file.
-      if (-not (Test-Path -LiteralPath $sdw)) { Copy-Item -LiteralPath "$src\VaniBase_25.sdw" -Destination $sdw }
+    }
+    # Copied once only: your notes and highlights live in the shadow file.
+    if (-not (Test-Path -LiteralPath $sdw) -and (Test-Path -LiteralPath "$src\VaniBase_25.sdw")) {
+      Copy-Item -LiteralPath "$src\VaniBase_25.sdw" -Destination $sdw
     }
     $arguments = "`"$sdw`""
     New-Shortcut "$env:PUBLIC\Desktop\VaniBase 25.lnk" $arguments
@@ -305,12 +310,21 @@ function Set-SharedTemp {
 
 # Install.exe writes Folio's display settings only for the account that ran it.
 # Active Setup gives every account the defaults at its next sign-in, and the
-# finish phase gives them to you now.
+# finish phase gives them to you now. Both check the contents font rather than
+# the key, which Folio creates itself when it closes. The file imported at
+# sign-in lives in the cache, which only administrators can change: in the
+# program folder any account could edit it, and it would be imported into
+# every other account.
+$FolioPrefs = 'HKCU\Software\VedaBase\4\Views\NfoView\Preferences'
+function Test-FolioSettings {
+  $p = Get-ItemProperty -LiteralPath 'HKCU:\Software\VedaBase\4\Views\NfoView\Preferences' -ErrorAction SilentlyContinue
+  return [bool]($p -and $p.PSObject.Properties['FontName'] -and $p.FontName -eq 'BellCentennial')
+}
 function Register-UserDefaults {
-  $reg = Join-Path $AppDir 'vedabase-defaults.reg'
-  Copy-Item -LiteralPath $UserDefaults -Destination $reg -Force
+  Copy-Item -LiteralPath $UserDefaults -Destination $CachedDefaults -Force
+  Remove-Item -LiteralPath (Join-Path $AppDir 'vedabase-defaults.reg') -Force -ErrorAction SilentlyContinue
   if (-not (Test-Path -LiteralPath $ActiveSetup)) { New-Item -Path $ActiveSetup | Out-Null }
-  $stub = "cmd.exe /c reg query HKCU\Software\VedaBase\4\Views >nul 2>&1 || reg import `"$reg`""
+  $stub = "cmd.exe /c reg query `"$FolioPrefs`" /v FontName 2>nul | find /i `"BellCentennial`" >nul || reg import `"$CachedDefaults`""
   New-ItemProperty -LiteralPath $ActiveSetup -Name '(default)' -Value 'VedaBase 25 settings' -PropertyType String -Force | Out-Null
   New-ItemProperty -LiteralPath $ActiveSetup -Name 'StubPath' -Value $stub -PropertyType String -Force | Out-Null
   New-ItemProperty -LiteralPath $ActiveSetup -Name 'Version' -Value '1' -PropertyType String -Force | Out-Null
@@ -361,16 +375,27 @@ function Remove-Staging {
   if ($left) { Set-Content -LiteralPath $StagedList -Value $left } else { Remove-Item -LiteralPath $StagedList -Force }
 }
 
+# Shadow files kept aside before a wizard run go back afterwards, even if a
+# restart cut that run short: the list of them stays until they are back.
+function Restore-Notes {
+  if (-not (Test-Path -LiteralPath $SdwPending) -or -not (Test-Path -LiteralPath $NfoDir)) { return }
+  foreach ($name in @(Get-Content -LiteralPath $SdwPending)) {
+    $saved = Join-Path $SdwBackup $name
+    if ($name -and (Test-Path -LiteralPath $saved)) { Copy-Item -LiteralPath $saved -Destination (Join-Path $NfoDir $name) -Force }
+  }
+  Remove-Item -LiteralPath $SdwPending -Force
+  Say "Kept your existing notes and highlights (.sdw files; a copy stays in $SdwBackup)"
+}
+
 function Invoke-Wizard {
   # Reinstalling over an earlier copy replaces its shadow files, which hold the
   # user's notes; keep them aside and put them back afterwards.
-  $backup = Join-Path $Cache 'sdw-backup'
-  $kept = @()
   if (Test-Path -LiteralPath $NfoDir) {
     $kept = @(Get-ChildItem -LiteralPath $NfoDir -Filter '*.sdw' -File)
     if ($kept) {
-      New-Item -ItemType Directory -Force -Path $backup | Out-Null
-      $kept | Copy-Item -Destination $backup -Force
+      New-Item -ItemType Directory -Force -Path $SdwBackup | Out-Null
+      $kept | Copy-Item -Destination $SdwBackup -Force
+      Set-Content -LiteralPath $SdwPending -Value ($kept | ForEach-Object { $_.Name })
     }
   }
 
@@ -407,10 +432,7 @@ function Invoke-Wizard {
     Start-Sleep -Seconds 2
   }
 
-  if ($kept) {
-    Copy-Item -Path "$backup\*.sdw" -Destination $NfoDir -Force
-    Say 'Kept your existing notes and highlights (.sdw files)'
-  }
+  Restore-Notes
   if (-not (Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe'))) {
     throw 'The installer did not finish (Views.exe is missing). Run this installer again to retry.'
   }
@@ -423,12 +445,14 @@ function Invoke-MachinePhase {
   Write-Host 'VedaBase setup (administrator)' -ForegroundColor White
   New-Item -ItemType Directory -Force -Path $Cache | Out-Null
   try { Start-Transcript -LiteralPath (Join-Path $Cache 'install.log') -Append | Out-Null } catch { }
+  Restore-Notes  # notes kept aside by a run that a restart cut short
 
   $installed = Test-Installed
   if ($installed) { Say 'Folio Views is already installed; finishing the setup' }
   elseif ((Test-Path -LiteralPath $Master) -and (Get-Item -LiteralPath $Master).Length -ne $MasterSize) {
-    throw ("An older VedaBase is installed in $AppDir. Copy your notes (the .sdw files in $NfoDir) somewhere " +
-      'safe, uninstall it (Settings > Apps), then run this installer again.')
+    throw ("$AppDir holds a different VedaBase infobase: an older VedaBase, or an install that was cut short. " +
+      "Copy your notes (the .sdw files in $NfoDir) somewhere safe, uninstall it (Settings > Apps; if it is " +
+      'not listed there, delete the folder), then run this installer again.')
   }
   # Remember which C:\ items this run creates, so cleanup removes only those.
   $new = $StageItems | Where-Object { -not (Test-Path -LiteralPath $_) }
@@ -450,12 +474,15 @@ function Invoke-MachinePhase {
     if (-not (Test-Intact $target $row[2] $row[3])) { Get-DriveFile $row $target }
   }
 
-  if (-not $NoCompatMode) {
-    # Folio Views 4.3 is an XP-era program; XP SP2 compatibility is what
-    # devotees used against its hang on exit under Windows 7. reg.exe adds the
-    # value without touching the other programs' settings in this key.
-    $code = Invoke-Tool 'reg.exe' @('add', 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers',
-      '/v', "$AppDir\Views.exe", '/t', 'REG_SZ', '/d', '~ WINXPSP2', '/f', '/reg:64')
+  # Folio Views 4.3 is an XP-era program; XP SP2 compatibility is what devotees
+  # used against its hang on exit under Windows 7. reg.exe changes this one
+  # value without touching the other programs' settings in the key.
+  $layers = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers'
+  if ($NoCompatMode) {
+    # Undo an earlier run's setting (reg.exe exits 1 when there is none).
+    $null = Invoke-Tool 'reg.exe' @('delete', $layers, '/v', "$AppDir\Views.exe", '/f', '/reg:64')
+  } else {
+    $code = Invoke-Tool 'reg.exe' @('add', $layers, '/v', "$AppDir\Views.exe", '/t', 'REG_SZ', '/d', '~ WINXPSP2', '/f', '/reg:64')
     if ($code -ne 0) { Warn 'Could not set compatibility mode on Views.exe' }
   }
 
@@ -474,7 +501,7 @@ function Invoke-MachinePhase {
 function Invoke-FinishPhase {
   # Folio keeps its fonts and toolbar layout under HKCU. If Install.exe wrote
   # them into another account, the contents pane shows broken diacritics.
-  if (-not (Test-Path -LiteralPath 'HKCU:\Software\VedaBase\4\Views')) {
+  if (-not (Test-FolioSettings)) {
     Say 'Restoring Folio''s default settings for your account'
     if ((Invoke-Tool 'reg.exe' @('import', $UserDefaults)) -ne 0) { Warn "Could not import $UserDefaults" }
   }

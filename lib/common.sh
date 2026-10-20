@@ -17,6 +17,8 @@ VB_APP_REL='drive_c/Bhaktivedanta VedaBase 2003'
 VB_CONFIG_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/vedabase
 VB_BIN_LINK=$HOME/.local/bin/vedabase
 VB_APPS_DIR=${XDG_DATA_HOME:-$HOME/.local/share}/applications
+# The account name; $USER is not set everywhere (cron, some sudo setups).
+VB_USER=${USER:-$(id -un)}
 
 # --- messages -----------------------------------------------------------------
 if [[ -t 2 ]]; then
@@ -46,6 +48,7 @@ vb_init_paths() {
     VEDABASE_HOME=$(<"$VB_CONFIG_DIR/home")
   fi
   VB_HOME=${VEDABASE_HOME:-$(vb_default_home)}
+  [[ $VB_HOME == /* ]] || VB_HOME=$PWD/$VB_HOME # Wine needs an absolute WINEPREFIX
   VB_PREFIX=$VB_HOME/prefix
   VB_DOWNLOADS=$VB_HOME/downloads
   VB_TOOLS=$VB_HOME/tools/root
@@ -67,11 +70,12 @@ vb_env() {
   export LD_LIBRARY_PATH=$VB_TOOLS/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 }
 
-# Finished means post-install ran: it leaves a stamp (installs from before the
-# stamp existed are recognised by the VedaBase_25.nfo link they all have).
+# Finished means post-install ran: it leaves a stamp. Installs from before the
+# stamp existed are recognised by the VedaBase_25.nfo link they all have, with
+# the installer's staging links gone (post-install removes them).
 vb_installed() {
   [[ -f $VB_PREFIX/.vedabase-installed ]] ||
-    [[ -f $VB_APP_DIR/Views.exe && -e $VB_APP_DIR/Nfo/VedaBase_25.nfo ]]
+    [[ -f $VB_APP_DIR/Views.exe && -e $VB_APP_DIR/Nfo/VedaBase_25.nfo && ! -L $VB_PREFIX/drive_c/Install.exe ]]
 }
 
 # Portable between GNU (Linux) and BSD (macOS) userlands.

@@ -9,6 +9,10 @@ if [[ ! -f mac/install.sh || ! -d lib || ! -d manifest ]]; then
 fi
 bash mac/install.sh "$@"
 status=$?
+if [[ $status == 126 ]]; then
+  echo "macOS did not let Terminal open the installer's files. Allow Terminal under"
+  echo "System Settings > Privacy & Security > Files and Folders, then run it again."
+fi
 echo
 read -r -p 'Press Enter to close this window. ' _
 exit "$status"

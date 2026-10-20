@@ -23,4 +23,5 @@ SOFTWARE.
 This license covers the scripts and documents in this repository only. It does
 not cover the Bhaktivedanta VedaBase program or its infobases, which the
 installers download from their owners' distribution and which come under the
-Bhaktivedanta Archives license.
+Bhaktivedanta Archives license, nor windows/vedabase-defaults.reg, which holds
+the settings the VedaBase installer writes.

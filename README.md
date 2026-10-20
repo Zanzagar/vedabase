@@ -35,6 +35,11 @@ using it. Running an installer again is safe: it finishes whatever is missing.
 
 ## Windows 10 or 11
 
+First, **S mode.** Windows in S mode runs only apps from the Microsoft Store,
+so neither the installer nor VedaBase can run there. *Settings → System →
+Activation* shows whether a PC is in S mode. Switching out of it is free but
+cannot be undone.
+
 1. Double-click **`Install-VedaBase-Windows.cmd`**.
    - If an *"Open File – Security Warning"* appears, click **Run**.
    - If *"Windows protected your PC"* appears, click **More info → Run anyway**.
@@ -67,20 +72,19 @@ Notes:
   Task Manager (Ctrl+Shift+Esc). This is a known problem with this 2003
   program on newer Windows. The installer sets Windows XP compatibility mode
   on `Views.exe`, which devotees used against it on Windows 7, though one
-  report says it did not help on Windows 10. To turn the mode off, right-click
-  `C:\Bhaktivedanta VedaBase 2003\Views.exe` → *Properties* → *Compatibility*.
-- **Options.** To leave out VaniBase, or skip compatibility mode, open a
-  Command Prompt in the unzipped folder and run
-  `Install-VedaBase-Windows.cmd -NoVaniBase` or
-  `Install-VedaBase-Windows.cmd -NoCompatMode`.
+  report says it did not help on Windows 10. To turn the mode off, run the
+  installer again with `-NoCompatMode` (see *Options*).
+- **Options.** To leave out VaniBase, or to skip or undo compatibility mode,
+  open the unzipped folder, click the address bar, type `cmd` and press
+  Enter. In the window that opens, type
+  `.\Install-VedaBase-Windows.cmd -NoVaniBase` or
+  `.\Install-VedaBase-Windows.cmd -NoCompatMode` and press Enter.
 - **Smart App Control.** If Windows blocks the 2003 programs, Smart App
   Control is the likely cause (*Windows Security → App & browser control*).
-  Turning it off lets VedaBase run, but on many Windows 11 versions it cannot
-  be turned back on without resetting Windows, so decide carefully. The
-  installer warns you if it is on.
-- **S mode.** Windows 11 in S mode runs only Store apps. Neither the
-  installer nor VedaBase can run until the PC is switched out of S mode
-  (*Settings → System → Activation*). The switch is free but cannot be undone.
+  Turning it off lets VedaBase run. On Windows 11 with the updates since March
+  2026 you can turn it back on later from the same page; on older versions
+  that needs a reset of Windows, so decide carefully. The installer warns you
+  if it is on.
 
 ## macOS (Intel or Apple Silicon)
 
@@ -89,11 +93,13 @@ Notes:
 2. On Apple Silicon it first installs Rosetta 2 if it is missing. That needs
    an administrator account, and macOS asks for your password. It then
    downloads a free Wine for macOS (Gcenx's build, which WineHQ distributes;
-   CrossOver is not needed) and the VedaBase files.
+   CrossOver is not needed) and the VedaBase files. Keep the lid open until
+   it is done: the installer stops the Mac from going to sleep, but closing
+   the lid still sends it to sleep.
 3. The original installer opens. Click through it as in the Windows steps
    above: **Custom**, tick the first two packages, **Install**, **Finish**.
-   Answer the restart questions either way, and close the Fonts window it
-   opens. The Terminal window waits until every installer window is closed.
+   Answer the restart questions either way. The Terminal window then closes
+   the Fonts window the installer opens, and finishes.
 4. It finishes the setup and puts **VedaBase 25** and **VaniBase 25** apps in
    the `Applications` folder inside your home folder. Drag them to the Dock if
    you like. In VedaBase, ⌘C and ⌘V copy and paste.
@@ -203,13 +209,15 @@ small or on a network share.
 Folio keeps your highlights, bookmarks and notes in the shadow files (the
 files ending in `.sdw`), next to the infobases:
 
-- **Windows:** `C:\Bhaktivedanta VedaBase 2003\Nfo`.
+- **Windows:** `C:\Bhaktivedanta VedaBase 2003\Nfo`. Windows may hide the
+  `.sdw` ending; the files are *Bhaktivedanta Vedabase 2003* and *VaniBase_25*.
 - **macOS:** `~/Library/Application Support/VedaBase/prefix/drive_c/Bhaktivedanta VedaBase 2003/Nfo`.
   In the Finder, use *Go → Go to Folder…* and paste the path.
 - **Linux:** `~/.local/share/vedabase/prefix/drive_c/Bhaktivedanta VedaBase 2003/Nfo`,
   or `vedabase where`. `vedabase backup` saves the whole installation, and
   `install.sh --restore FILE` puts it back on any Linux computer without
-  running the installer again.
+  running the installer again. Restore only a backup you made yourself: it
+  holds programs that run as you.
 
 Copy the `.sdw` files somewhere safe before reinstalling or uninstalling.
 
@@ -247,9 +255,12 @@ The files come from public Google Drive links owned by Ekanatha dāsa.
 ## Removing VedaBase
 
 - **Windows:**
+  - First copy your `.sdw` files out of `C:\Bhaktivedanta VedaBase 2003\Nfo`:
+    uninstalling deletes the VedaBase one.
   - Uninstall *Bhaktivedanta VedaBase 2003* in *Settings → Apps*.
-  - Delete `C:\Bhaktivedanta VedaBase 2003` (save your `.sdw` files first),
-    `C:\Program Files\VedaBase-Setup`, and the *VaniBase 25* shortcuts.
+  - Delete `C:\Bhaktivedanta VedaBase 2003`, `C:\Program Files\VedaBase-Setup`,
+    the *Bhaktivedanta VedaBase 2003* and *VaniBase 25* icons on the desktop,
+    and the *Bhaktivedanta VedaBase 2003* folder in the Start menu.
 - **macOS:** delete `~/Library/Application Support/VedaBase` and the two
   apps in `~/Applications`.
 - **Linux:** delete the folder shown by `vedabase where` (home), the launcher

@@ -41,6 +41,9 @@ menu entries; the installer writes its own. Two more settings:
   rather than Wine's usual link to yours. Otherwise the installer's two
   shortcut files would land on your actual desktop.
 
+The prefix is private to your account (mode 0700), because it holds your notes
+and the licensed files; a re-run tightens an older prefix the same way.
+
 ## Install.exe
 
 `Install.exe` is an Indigo Rose **Setup Factory 5.0.1.6** launcher. It unpacks
@@ -104,10 +107,11 @@ Two problems came up under Wine:
   `Views.exe "C:\Bhaktivedanta VedaBase 2003\Nfo\Bhaktivedanta Vedabase 2003.sdw"`.
 
 **Finished means stamped.** `vb_postinstall` leaves a stamp file in the
-prefix. A re-run handles an interrupted install in one of two ways. If
-Install.exe had already copied everything, it finishes the remaining steps. If
-not, it moves the half-made prefix aside, since that may still hold notes, and
-starts again.
+prefix. A re-run first ends whatever an interrupted run left running (the
+wizard, its hidden display), then handles the prefix in one of two ways. If
+Install.exe had got as far as its last file, `irunin.ini`, with the infobase
+whole, it finishes the remaining steps. If not, it moves the half-made prefix
+aside, since that may still hold notes, and starts again.
 
 ## The infobase name the shadow file expects
 
@@ -150,9 +154,12 @@ as you, with no root:
   - *Display:* it takes an X cookie, passed to `xauth` on stdin, because every
     user on a shared server can read command lines.
   - *VNC:* it serves VNC only on a unix socket, mode 0600, in a short private
-    directory (`/tmp/vedabase-<uid>`, falling back to the session's runtime
-    directory). Unix socket paths can't exceed 107 bytes, which a deep
-    `--home` would.
+    directory: `/tmp/vedabase-<uid>`, or a new randomly named one in `/tmp`
+    if another user has taken that name. Unix socket paths can't exceed 107
+    bytes, which a deep `--home` would.
+  - *Display number:* `-displayfd` lets Xvnc take the first display whose
+    sockets it can claim completely, so a number another user has squatted
+    is skipped, never shared.
   - *No TCP:* `-rfbport -1` is essential. `-rfbport 0` still opens TCP
     5900+N on every interface, as the first test run showed.
   - *Requirement:* it needs `xkbcomp` at `/usr/bin` (packages `x11-xkb-utils`
@@ -161,7 +168,9 @@ as you, with no root:
   started with the system `/usr/bin/python3`, because the package is built for
   it. It listens on `127.0.0.1:6080`. A localhost port is open to every user
   of the machine, so a VNC password keeps the others out. The password is
-  new each time the viewer starts.
+  new each time the viewer starts, 48 bits, so failed logins are not locked
+  out (`-UseBlacklist=0`): the lockout would let any local user lock you out
+  through that port, and there is nothing to guess.
 - **A Wine virtual desktop** (`explorer /desktop=VedaBase,1600x1000`). With no
   window manager, Folio's window would have no frame, so it couldn't be moved
   or maximized. Folio also doesn't maximize itself under Wine, so
@@ -193,9 +202,11 @@ account. The phases pass a random token, so a run is never fooled by an old
    - *Compatibility:* Windows XP SP2 mode on `Views.exe`, set with
      `reg.exe`, which leaves other programs' entries alone. Devotees used
      this against Folio hanging on exit under Windows 7; a 2015 report says it
-     didn't help on Windows 10.
+     didn't help on Windows 10. `-NoCompatMode` removes it again.
    - *Wizard:* the original `Install.exe`, which the user clicks through. Any
-     existing `.sdw` notes are copied aside first and put back afterwards. If
+     existing `.sdw` notes are copied aside first and put back afterwards,
+     also when a restart cut that run short: the list of files to put back
+     stays in the working folder until they are back. If
      the infobase did not arrive (*VedaBase Master Files* left unticked), it
      says so. While the wizard is still on its last pages, it adds the
      `VedaBase_25.nfo` link and VaniBase 25, so a "restart now" answered with
@@ -205,11 +216,16 @@ account. The phases pass a random token, so a run is never fooled by an old
      Fonts if the diacritics fail".
    - *Swap folders:* Folio's swap and index folders move from the installing
      account's `TEMP` to `C:\Bhaktivedanta VedaBase 2003\Temp`, which every
-     account can write.
+     account can write. It matters: saving a large note spills Folio's index
+     into that folder, and where it cannot write, Folio retries for ever and
+     hangs (seen under Wine with the real Folio files).
    - *Per-account settings:* `windows/vedabase-defaults.reg` holds the
      `HKCU\Software\VedaBase` values that Install.exe writes, captured from a
      fresh install. An Active Setup entry imports it at each account's next
-     sign-in, whenever the account lacks those settings. Without them, Folio
+     sign-in unless the account already has Folio's contents font set. It
+     imports the copy in `C:\Program Files\VedaBase-Setup`, which only
+     administrators can change; a copy any account could edit would be
+     imported into every other account. Without these settings, Folio
      shows the contents pane in a plain font, so the diacritics come out as
      "Çrémad-Bhägavatam", and moves its toolbars. This was checked by
      deleting the key under Wine.
@@ -229,11 +245,11 @@ so Apple Silicon runs it through Rosetta 2. If Gcenx removes the pinned build,
 the installer takes the newest stable one, checked against the SHA-256 GitHub
 publishes for it.
 
-There is no xdotool on macOS, so the user clicks through the wizard.
-`wineserver -w` waits for every installer window to close, and reminds the
-user about the Fonts window, which can open behind the others. The same
-Windows 7 mode, `intro.wav` handler, desktop folder and post-install steps
-apply as on Linux.
+There is no xdotool on macOS, so the user clicks through the wizard. Once
+the wizard (`irsetup.exe`) has gone, the installer closes what it left open,
+including the Fonts window, which can sit behind other windows, as the Linux
+installer does. The same Windows 7 mode, `intro.wav` handler, desktop folder
+and post-install steps apply as on Linux.
 
 It then writes two small app bundles to `~/Applications`. Each one's `launch`
 script runs `Views.exe` on its shadow file. They are built locally, so

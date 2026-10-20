@@ -8,29 +8,28 @@
 vb_cookie() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
 
 # Unix socket paths are limited to 107 bytes, too short for a deep
-# VEDABASE_HOME, so the sockets live in a short private directory: /tmp, or
-# the login session's runtime directory if another user has taken the /tmp
-# name, or failing both the install's own run/ folder. The file name carries a
-# hash of the home so that two installs never share one.
+# VEDABASE_HOME, so the sockets live in a short private directory in /tmp:
+# /tmp/vedabase-<uid>, or a new randomly named one if another user has taken
+# that name. run/sockdir remembers which, so every command finds the same
+# sockets. The file name carries a hash of the home so that two installs never
+# share one.
 vb_sock_dir_ok() { # DIR: ours, private, not a symlink
   [[ -d $1 ]] || mkdir -m 700 "$1" 2>/dev/null || [[ -d $1 ]] || return 1
   [[ -O $1 && ! -L $1 ]] || return 1
   chmod 700 "$1"
 }
 vb_sock() { # NAME
-  local d
-  for d in "/tmp/vedabase-$(id -u)" "${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/vedabase}" "$VB_RUN"; do
-    [[ -n $d ]] && vb_sock_dir_ok "$d" && break
-  done
+  local d='' rec=$VB_RUN/sockdir
+  [[ -s $rec ]] && d=$(<"$rec")
+  if [[ -z $d ]] || ! vb_sock_dir_ok "$d"; then
+    d=/tmp/vedabase-$(id -u)
+    vb_sock_dir_ok "$d" || d=$(mktemp -d /tmp/vedabase-XXXXXXXX) ||
+      vb_die "could not make a private directory for VedaBase's sockets in /tmp"
+    mkdir -p "$VB_RUN"
+    chmod 700 "$VB_RUN"
+    printf '%s\n' "$d" >"$rec"
+  fi
   printf '%s/%s-%s.sock\n' "$d" "$1" "$(printf '%s' "$VB_HOME" | cksum | cut -d' ' -f1)"
-}
-
-vb_free_display() {
-  local n
-  for n in {40..99}; do
-    [[ -e /tmp/.X11-unix/X$n || -e /tmp/.X$n-lock ]] || { printf '%s\n' "$n"; return 0; }
-  done
-  return 1
 }
 
 vb_display_alive() { # NAME
@@ -48,50 +47,68 @@ vb_display_use() { # NAME: point DISPLAY/XAUTHORITY at it
 
 # vb_display_start NAME GEOMETRY SECURITY   (SECURITY: None or VncAuth)
 vb_display_start() {
-  local name=$1 geom=$2 sec=$3 d=$VB_RUN/$1 n i
+  local name=$1 geom=$2 sec=$3 d=$VB_RUN/$1 n='' i sock cookie pid
   mkdir -p "$d"
   chmod 700 "$VB_RUN" "$d"
   if vb_display_alive "$name"; then
     vb_display_use "$name"
     return 0
   fi
-  n=$(vb_free_display) || vb_die "no free X display number between :40 and :99"
-  local sock
   sock=$(vb_sock "$name")
-  rm -f -- "$d/xauth" "$sock"
+  rm -f -- "$d/xauth" "$d/displayfd" "$sock"
   (umask 077 && : >"$d/xauth")
-  # Fed on stdin: argv is readable by every user on a shared machine.
-  printf 'add :%s . %s\n' "$n" "$(vb_cookie)" | xauth -q -f "$d/xauth" source -
-  # -rfbport -1 turns the TCP listener off (0 would mean 5900+display on every
-  # interface); -localhost is a second guard in case that ever changes. Wine's
-  # virtual desktop cannot follow a resized screen, so resizing is refused.
-  local args=(":$n" -auth "$d/xauth" -geometry "$geom" -depth 24 -dpi 96
+  # Xvnc accepts the cookie whatever display it is filed under; clients look it
+  # up by display, so it is filed again under the one Xvnc picks. Fed on
+  # stdin: argv is readable by every user on a shared machine.
+  cookie=$(vb_cookie)
+  printf 'add :0 . %s\n' "$cookie" | xauth -q -f "$d/xauth" source -
+  # -displayfd: Xvnc takes the first display number whose sockets it can claim
+  # completely and reports it, so a number another user has squatted is
+  # skipped, never shared. -rfbport -1 turns the TCP listener off (0 would
+  # mean 5900+display on every interface); -localhost is a second guard in case
+  # that ever changes. Wine's virtual desktop cannot follow a resized screen,
+  # so resizing is refused.
+  local args=(-displayfd 3 -auth "$d/xauth" -geometry "$geom" -depth 24 -dpi 96
     -rfbport -1 -localhost -rfbunixpath "$sock" -rfbunixmode 0600
     -nolisten tcp -desktop VedaBase -SecurityTypes "$sec" -AlwaysShared
     -AcceptSetDesktopSize=0)
-  [[ $sec == VncAuth ]] && args+=(-rfbauth "$d/vncpasswd")
-  setsid Xtigervnc "${args[@]}" >"$d/xvnc.log" 2>&1 </dev/null &
-  local pid=$!
+  # With a new 48-bit password each start, guessing is hopeless, so failed
+  # logins need no lockout, which any local user could otherwise trigger
+  # through the localhost port to lock you out.
+  [[ $sec == VncAuth ]] && args+=(-rfbauth "$d/vncpasswd" -UseBlacklist=0)
+  setsid Xtigervnc "${args[@]}" 3>"$d/displayfd" >"$d/xvnc.log" 2>&1 </dev/null &
+  pid=$!
   printf '%s\n' "$pid" >"$d/xvnc.pid"
-  printf ':%s\n' "$n" >"$d/display"
-  vb_display_use "$name"
   for i in {1..50}; do
-    if xdotool getdisplaygeometry >/dev/null 2>&1; then
-      if [[ $(ss -Htlnp 2>/dev/null) == *"pid=$pid,"* ]]; then
-        vb_display_stop "$name"
-        vb_die "Xvnc opened a TCP port despite -rfbport -1; stopped it (see $d/xvnc.log)"
-      fi
-      return 0
-    fi
+    kill -0 "$pid" 2>/dev/null || break
+    n=$(tr -dc '0-9' <"$d/displayfd" 2>/dev/null) || n=''
+    [[ -n $n ]] && break
     sleep 0.2
   done
-  vb_die "Xvnc did not start; see $d/xvnc.log"
+  if [[ -z $n ]] || ! kill -0 "$pid" 2>/dev/null; then
+    vb_display_stop "$name"
+    vb_die "Xvnc did not start; see $d/xvnc.log"
+  fi
+  printf 'add :%s . %s\n' "$n" "$cookie" | xauth -q -f "$d/xauth" source -
+  printf ':%s\n' "$n" >"$d/display"
+  vb_display_use "$name"
+  if [[ $(ss -Htlnp 2>/dev/null) == *"pid=$pid,"* ]]; then
+    vb_display_stop "$name"
+    vb_die "Xvnc opened a TCP port despite -rfbport -1; stopped it (see $d/xvnc.log)"
+  fi
+  xdotool getdisplaygeometry >/dev/null 2>&1 || {
+    vb_display_stop "$name"
+    vb_die "Xvnc does not answer on :$n; see $d/xvnc.log"
+  }
 }
 
 vb_display_stop() { # NAME
-  local d=$VB_RUN/$1
-  if vb_display_alive "$1"; then kill "$(<"$d/xvnc.pid")" 2>/dev/null || true; fi
-  rm -f -- "$d/xvnc.pid" "$d/display" "$(vb_sock "$1")"
+  local d=$VB_RUN/$1 pid
+  if [[ -s $d/xvnc.pid ]]; then
+    pid=$(<"$d/xvnc.pid")
+    if [[ $(ps -o comm= -p "$pid" 2>/dev/null) == Xtigervnc* ]]; then kill "$pid" 2>/dev/null || true; fi
+  fi
+  rm -f -- "$d/xvnc.pid" "$d/display" "$d/displayfd" "$(vb_sock "$1")"
 }
 
 # --- browser viewer -------------------------------------------------------------

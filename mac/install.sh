@@ -21,6 +21,7 @@ MAC_WINE_SHA256=b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388
 MAC_APPS=$HOME/Applications
 
 [[ $(uname -s) == Darwin ]] || vb_die "this is the macOS installer; on Linux run ./install.sh"
+[[ $EUID -ne 0 ]] || vb_die "run the installer as yourself, without sudo"
 # Gcenx's builds need macOS 10.15.4 or later.
 IFS=. read -r mac_major mac_minor mac_patch _ <<<"$(sw_vers -productVersion).0.0"
 if ((mac_major == 10 && (mac_minor < 15 || (mac_minor == 15 && mac_patch < 4)))); then
@@ -30,15 +31,26 @@ fi
 vb_init_paths
 VB_WINE_DIR="$VB_HOME/wine/Wine Stable.app/Contents/Resources/wine"
 mkdir -p "$VB_HOME" "$VB_LOGS"
-trap 'rc=$?; ((rc == 0)) || vb_warn "the install did not finish. Logs: $VB_LOGS (in Finder: Go > Go to Folder). Running the installer again continues where it stopped."' EXIT
+in_wizard=0 # set while the installer's windows are open
+on_exit() {
+  local rc=$?
+  ((rc == 0)) && return
+  if ((in_wizard)); then wineserver -k >/dev/null 2>&1 || true; fi # close its windows
+  vb_warn "the install did not finish. Logs: $VB_LOGS (in Finder: Go > Go to Folder). Running the installer again continues where it stopped."
+}
+trap on_exit EXIT
 vb_say "Installing into $VB_HOME"
 # Keep the Mac awake while this runs: the downloads and the wizard take a while.
 caffeinate -i -w $$ >/dev/null 2>&1 &
 
 if ! vb_installed; then
+  # About 4 GB in all, less whatever an earlier run already put here.
+  have_kb=$(du -sk "$VB_HOME/wine" "$VB_DOWNLOADS" "$VB_PREFIX" 2>/dev/null | awk '{s += $1} END {print s + 0}') ||
+    true # du fails on the folders a fresh install has not made yet; awk still sums the rest
+  need_kb=$((4 * 1024 * 1024 - have_kb))
   avail_kb=$(df -Pk "$VB_HOME" 2>/dev/null | awk 'NR == 2 {print $4}') || avail_kb=''
-  [[ -z $avail_kb ]] || ((avail_kb >= 4 * 1024 * 1024)) ||
-    vb_die "the installer needs about 4 GB of free disk space (this Mac has $((avail_kb / 1024)) MB free)"
+  [[ -z $avail_kb ]] || ((avail_kb >= need_kb)) ||
+    vb_die "the installer needs about $((need_kb / 1024)) MB more free disk space (this Mac has $((avail_kb / 1024)) MB free)"
 fi
 
 # Gcenx's Wine is an Intel (x86_64) program; Apple Silicon runs it through Rosetta 2.
@@ -59,7 +71,8 @@ if [[ ! -x $VB_WINE_DIR/bin/wine ]]; then
     # stable build, checked against the SHA-256 GitHub publishes for it.
     vb_warn "the pinned Wine build is gone; looking up the newest stable one"
     # JavaScript for Automation parses the JSON: a stock Mac has no real python3.
-    releases=$(curl -fsSL 'https://api.github.com/repos/Gcenx/macOS_Wine_builds/releases?per_page=30')
+    releases=$(curl -fsSL 'https://api.github.com/repos/Gcenx/macOS_Wine_builds/releases?per_page=30') ||
+      vb_die "could not look up a newer Wine build on github.com; check the internet connection and run the installer again later"
     read -r MAC_WINE_URL MAC_WINE_SHA256 < <(osascript -l JavaScript -e '
       function run(argv) {
         for (const r of JSON.parse(argv[0]))
@@ -102,28 +115,38 @@ if ! vb_installed; then
       4. Tick "All Folio Program Files" and "VedaBase Master Files"
          (leave "WinAmp media player" unticked), then Next.
       5. Next, Next, Install, then Next, Next and Finish.
-      6. Answer the restart questions (either answer is fine) and close the
-         Fonts window it opens. This Terminal window then carries on.
+      6. Answer the restart questions (either answer is fine). This Terminal
+         window then closes the Fonts window the installer opens, and carries on.
 
 EOF
+  in_wizard=1
   (cd "$VB_PREFIX/drive_c" && wine 'C:\Install.exe' >>"$VB_LOGS/installer.log" 2>&1) || true
-  # wineserver -w returns once every installer window is closed. The Fonts
-  # window can open behind others, so remind the user while waiting.
-  wineserver -w &
-  waiter=$!
-  waited=0
-  while kill -0 "$waiter" 2>/dev/null; do
-    sleep 5
-    waited=$((waited + 5))
-    if ((waited % 120 == 0)) && [[ -f $VB_APP_DIR/irunin.ini ]]; then
-      vb_say "Still waiting: once you have clicked Finish, close the installer's remaining windows (the Fonts window may be behind this one)."
-    fi
+  # The launcher hands over to irsetup.exe, the wizard. Once that has gone,
+  # end what it leaves open (the Fonts window, which can sit behind others),
+  # as the Linux installer does, then do Wine's equivalent of the restart.
+  # Wine's own process list tells; if it shows nothing usable (no services.exe,
+  # which every running prefix has), the user closes the windows instead.
+  vb_say "Waiting for the installer to finish (click through its window)"
+  sleep 3
+  while :; do
+    tasks=$(wine tasklist /fo csv /nh 2>/dev/null) || tasks=''
+    grep -qi '"services[.]exe"' <<<"$tasks" || { wizard=unknown; break; }
+    grep -qiE '"(irsetup|install)[.]exe"' <<<"$tasks" || { wizard=gone; break; }
+    sleep 3
   done
+  if [[ $wizard == gone ]]; then
+    wineserver -k >/dev/null 2>&1 || true
+  else
+    vb_say "When the installer has finished, close its remaining windows (the Fonts window may be behind this one)."
+  fi
+  wineserver -w
   wineboot --restart >>"$VB_LOGS/installer.log" 2>&1 || true
   wineserver -w
+  in_wizard=0
   vb_check_install
   vb_postinstall
 fi
+chmod 700 "$VB_PREFIX" # also tightens installs made before this was done
 vani=$VB_APP_DIR/Nfo/VaniBase_25.nfo
 if [[ ! -f $vani || ! -f $VB_APP_DIR/Nfo/VaniBase_25.sdw || $(vb_size "$vani") != "$(vb_manifest_size VaniBase/VaniBase_25.nfo)" ]]; then
   vb_fetch_files VaniBase/

@@ -73,12 +73,17 @@ vb_fetch_files() {
     for try in 1 2 3; do
       vb_fetch_one "$id" "$rel" "$out" && vb_file_ok "$out" "$size" "$sha" && break
       rm -f -- "$out" # a complete but wrong file starts over; a .part is resumed
+      # A local copy will not mend itself on a second try.
+      [[ -n ${VEDABASE_SOURCE:-} ]] && ! vb_source_is_remote && break
       if ((try < 3)); then
         vb_warn "$rel did not arrive intact, retrying"
         sleep 5
       fi
     done
-    vb_file_ok "$out" "$size" "$sha" ||
+    if ! vb_file_ok "$out" "$size" "$sha"; then
+      [[ -z ${VEDABASE_SOURCE:-} ]] ||
+        vb_die "$rel is missing from $VEDABASE_SOURCE or differs from the release this installer expects. The copy must be laid out like the Drive folders (Install.exe, Fonts/, Nfo/, Spec/, VaniBase/)."
       vb_die "$rel did not arrive intact. Usually Google Drive is limiting downloads for a while: wait a few hours and run the installer again. Check the connection and free disk space too; if the files themselves changed, see 'If the download breaks' in README.md."
+    fi
   done <"$VB_REPO/manifest/drive-files.tsv"
 }

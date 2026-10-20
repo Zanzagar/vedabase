@@ -26,7 +26,8 @@ Usage: vedabase [COMMAND] [INFOBASE]
 INFOBASE is vedabase (default), vanibase, help (Folio's own help infobase),
 or folio (Folio Views with no infobase; use File > Open). Without a COMMAND,
 'vedabase' or 'vedabase vanibase' opens a window if there is a display and
-the browser viewer otherwise; 'vedabase -h' shows this text.
+the browser viewer otherwise. 'vedabase help' shows this text; Folio's own
+help opens with 'vedabase open help'.
 EOF
 }
 
@@ -76,18 +77,40 @@ web_url() {
     "$(vb_web_port)" "$(<"$VB_RUN/web/password")"
 }
 
+# How to reach the viewer: the link, and outside WSL the SSH tunnel it needs.
+web_instructions() {
+  local host port
+  port=$(vb_web_port)
+  if [[ -n ${WSL_DISTRO_NAME:-} ]]; then
+    # WSL forwards localhost to Windows, so no tunnel is needed.
+    printf 'Open this in your Windows browser:\n  %s\n' "$(web_url)"
+  else
+    host=$(hostname -f 2>/dev/null || hostname)
+    cat <<EOF
+1. On your own computer, open a tunnel (leave it running):
+     ssh -N -L $port:127.0.0.1:$port $VB_USER@$host
+   (Or add a local forward $port -> 127.0.0.1:$port to your SSH client's saved session.)
+2. Open in a browser:
+     $(web_url)
+EOF
+  fi
+  printf '\nCopy text out through the clipboard tab on the noVNC side panel.\nStop it with: vedabase stop\n'
+}
+
 cmd_web() {
   require_install
-  local geom=${VEDABASE_WEB_GEOMETRY:-1600x1000} host port
+  local geom=${VEDABASE_WEB_GEOMETRY:-1600x1000} t
   [[ -x /usr/bin/xkbcomp && -d /usr/share/X11/xkb ]] ||
     vb_die "the browser viewer needs x11-xkb-utils and xkb-data (sudo apt-get install x11-xkb-utils xkb-data); on a desktop use 'vedabase open'"
-  command -v Xtigervnc >/dev/null || [[ -x $VB_TOOLS/usr/bin/Xtigervnc ]] ||
-    vb_die "the browser viewer's parts are missing; run install.sh again"
   vb_env
+  for t in Xtigervnc tigervncpasswd xauth xdotool; do
+    command -v "$t" >/dev/null || vb_die "the browser viewer's parts are missing ($t); run install.sh again"
+  done
   if web_running; then
     if [[ -n $(vb_prefix_pids) ]]; then
-      # Already showing: just give the link again rather than a second Folio.
-      printf 'VedaBase is already running in the browser viewer:\n  %s\n' "$(web_url)"
+      # Already showing: give the way in again rather than start a second Folio.
+      printf 'VedaBase is already running in the browser viewer (to open another infobase\nthere, use File > Open in it).\n\n'
+      web_instructions
       return 0
     fi
   elif [[ -n $(vb_prefix_pids) ]]; then
@@ -99,26 +122,8 @@ cmd_web() {
   wine reg add 'HKCU\Software\VedaBase\4\Views\Frame\Layout' /v AppPosition \
     /d "0,0,${geom/x/,}" /f >/dev/null 2>&1 || true
   launch "${1:-vedabase}" "$geom"
-  host=$(hostname -f 2>/dev/null || hostname)
-  port=$(vb_web_port)
-  if [[ -n ${WSL_DISTRO_NAME:-} ]]; then
-    # WSL forwards localhost to Windows, so no tunnel is needed.
-    printf '\nVedaBase is running. Open this in your Windows browser:\n  %s\n' "$(web_url)"
-    return 0
-  fi
-  cat <<EOF
-
-VedaBase is running in a private display on $host.
-
-1. On your own computer, open a tunnel (leave it running):
-     ssh -N -L $port:127.0.0.1:$port $USER@$host
-   (Or add a local forward $port -> 127.0.0.1:$port to your SSH client's saved session.)
-2. Open in a browser:
-     $(web_url)
-
-Copy text out through the clipboard tab on the noVNC side panel.
-Stop it with: vedabase stop
-EOF
+  printf '\nVedaBase is running in a private display.\n\n'
+  web_instructions
 }
 
 cmd_stop() {
@@ -161,7 +166,7 @@ cmd_doctor() {
   else
     printf '  info  VaniBase 25 not installed (optional)\n'
   fi
-  f=$(find "$VB_PREFIX/drive_c/windows/Fonts" -maxdepth 1 -iname 'balaram_.ttf' 2>/dev/null)
+  f=$(find "$VB_PREFIX/drive_c/windows/Fonts" -maxdepth 1 -iname 'balaram_.ttf' 2>/dev/null) || f=''
   check "diacritic fonts in C:\\windows\\Fonts" test -n "$f"
   if command -v vedabase >/dev/null 2>&1; then
     printf '  ok    vedabase command on PATH\n'
@@ -181,9 +186,12 @@ cmd_backup() {
   local out=${1:-$VB_HOME/backups/vedabase-prefix-$(date +%Y%m%d).tar.gz}
   vb_env
   [[ -z $(vb_prefix_pids) ]] || vb_die "VedaBase is running; close it (vedabase stop) first"
-  mkdir -p -- "$(dirname -- "$out")"
   vb_say "Saving $VB_PREFIX to $out"
-  (umask 077 && tar -C "$VB_HOME" -czf "$out" prefix) # your notes and licensed files: yours only
+  # Your notes and licensed files: yours only. Written aside, then renamed, so
+  # an older file of the same name (whose mode tar would keep) is replaced.
+  (umask 077 && mkdir -p -- "$(dirname -- "$out")" && rm -f -- "$out.part" &&
+    tar -C "$VB_HOME" -czf "$out.part" prefix) || { rm -f -- "$out.part"; vb_die "could not write $out"; }
+  mv -f -- "$out.part" "$out"
   vb_say "Restore elsewhere with: install.sh --restore $out"
 }
 

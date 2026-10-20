@@ -46,22 +46,24 @@ that once with this list before relying on either.
   - `HKLM\SOFTWARE\WOW6432Node\VedaBase\4\Server\SwapPath` points to
     `C:\Bhaktivedanta VedaBase 2003\Temp`.
   - `HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{8C9EE47A-5102-4B2C-B476-0212DFBB3EC0}`
-    exists.
+    exists, and its `StubPath` names
+    `C:\Program Files\VedaBase-Setup\vedabase-defaults.reg`, which exists.
   - `HKCU\Software\VedaBase\4` exists.
 - Sign in as a **second account** on the same PC and repeat checks 2–4 above.
   Active Setup should have given that account the settings.
 - If possible, install as a standard user, typing an administrator's password
-  when Windows asks, then repeat check 3.
+  when Windows asks. Then, as that standard user, repeat check 3, and:
+  - `reg query "HKLM\SOFTWARE\VedaBase\4\Server\Index\TempPath" /reg:32`
+    shows `C:\Bhaktivedanta VedaBase 2003\Temp`, not a folder in anyone's
+    profile.
+  - Paste a few pages of text into a note, press Ctrl+S, search, then close
+    VedaBase and save. None of these may stick on "Saving Document..." or
+    "Updating Index...".
 - Accept the installer's restart prompt once, on purpose, then run the `.cmd`
   again. It should finish cleanly.
-- To compare without compatibility mode, first remove the setting by running
-  this in an administrator Command Prompt:
-
-  ```
-  reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" /v "C:\Bhaktivedanta VedaBase 2003\Views.exe" /reg:64 /f
-  ```
-
-  Then run `Install-VedaBase-Windows.cmd -NoCompatMode` and repeat check 6.
+- To compare without compatibility mode, run
+  `.\Install-VedaBase-Windows.cmd -NoCompatMode` (it removes the setting),
+  check that the `Layers` entry is gone, and repeat check 6.
 
 ## macOS only
 
