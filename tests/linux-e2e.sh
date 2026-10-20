@@ -30,8 +30,8 @@ if [[ -n ${CHROME_EXE:-} ]]; then
   sleep 8
   python3 "$TESTS/novnc/lockout.py" "$url" "$B/web-after-wrong.png" >"$B/lockout.log" 2>&1
   check "six wrong passwords, then the right one connects (log: $B/lockout.log)" test $? -eq 0
-  python3 "$TESTS/novnc/typing.py" "$url" "$B/web-typed.png" >"$B/typing.log" 2>&1
-  check "typing through the browser reaches Folio (look at $B/web-typed.png)" test $? -eq 0
+  python3 "$TESTS/novnc/search.py" "$url" "$B/web-typed.png" >"$B/search.log" 2>&1
+  check "a search typed through the browser runs (look at $B/web-typed.png)" test $? -eq 0
 else
   echo "SKIP  browser checks (set CHROME_EXE to a Chromium for Playwright)"
 fi

@@ -1,4 +1,4 @@
-"""typing.py URL OUT.png: connect through noVNC, click Folio's quick-search box,
+"""search.py URL OUT.png: connect through noVNC, click Folio's quick-search box,
 type a query and press Enter, then save a screenshot for a person to look at
 (the status bar shows the hits). Exits 1 if the viewer does not connect."""
 import os
