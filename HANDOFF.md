@@ -74,7 +74,9 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   on Atman (Windows PowerShell 5.1), no reboot or sign-out: Remove-OldCompatMode removed
   a planted XP layer and VedaBase then opened with no UAC; the transcripts end cleanly;
   after 6151aa1 each font is loaded exactly once and VedaBase and VaniBase render. Not
-  re-run with the fix: a real uninstall and reinstall in one sign-in.** The tester's report and evidence are on Atman in
+  re-run with the fix: a real uninstall and reinstall in one sign-in; d9b112d's change
+  (warn when the cache flush returns False) has not run on Windows. The session's final
+  report: `/home/corey/projects/vedabase-testing/evidence/REPORT.md` on Atman.** The tester's report and evidence are on Atman in
   `/home/corey/projects/vedabase-testing/evidence/`. Not run there: a second account, a
   standard user, an accepted restart, a note saved without elevation, SmartScreen.**
 - **Found this session, worth knowing:** Install.exe's launcher checks free space in
