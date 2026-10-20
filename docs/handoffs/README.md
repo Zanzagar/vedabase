@@ -64,3 +64,4 @@ the next handoff's `supersedes:`.
 
 | Handoff | Session | One line |
 | --- | --- | --- |
+| [2026-10-20 04:05 — the review is closed and the installers wait for Windows and Mac](2026-10-20-0405--the-review-is-closed-and-the-installers-wait-for-windows-and-mac.md) | `7dc8950f` | NOTHING IN FLIGHT. Review verdicts dispositioned, three Codex rounds acted on, `tests/` added and green, the launcher's 32-bit free-space refusal found and worked around, harness adopted, journel's install refreshed. Next: a real Windows run on Atman, a real Mac run, and Corey's sharing decision. |

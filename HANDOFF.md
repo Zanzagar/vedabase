@@ -23,8 +23,15 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 
 ## State (2026-10-20)
 
-- `main` holds everything up to the merge of `review/verdict-followups`
-  (`5e1dd70..58eec55`), pushed to the private GitHub repository `Zanzagar/vedabase`.
+- `main` holds ~~everything up to the merge of `review/verdict-followups`
+  (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
+  claude-harness adoption (73c9683, cb405ea)**, pushed to the private GitHub repository
+  `Zanzagar/vedabase`.
+- **claude-harness adopted** 2026-10-20 under Corey's standing decision of 2026-09-28:
+  AGENTS.md, CLAUDE.md, `.claude/settings.json`, `docs/handoffs/`, the commit gate
+  (`core.hooksPath` set in journel's clone; a clone elsewhere, such as Atman's, runs
+  `git config core.hooksPath .githooks` once), grill-gate CI green, squash merges set to
+  PR title / PR body. All of it export-ignored.
 - **The review is closed.** Workflow `wf_efcb88f5-f2e` (five lenses, 68 findings, one
   verifier per finding, which harness ADR 0001 no longer allows) finished in the old
   session's process after that session ran out of context. Commit 6942798 had acted on
@@ -48,7 +55,8 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   4 GiB (the installers now write a 128 MiB filler first; `docs/how-it-works.md`).
   Bash's EXIT trap sees status 0 on SIGINT/SIGHUP unless INT/HUP/TERM traps exit.
 - **journel's own install**: home `/journel/s0/cjh5690/vedabase` (made 0700 on
-  2026-10-20: it was readable by every account on journel), launcher
+  2026-10-20: it was readable by every account on journel; refreshed with the merged
+  code the same day, `doctor` passing), launcher
   `~/.local/bin/vedabase`, and `~/.config/vedabase/home` remembers the home. A
   from-scratch reinstall needs `./install.sh --home /journel/s0/cjh5690/vedabase`. Run
   `vedabase doctor` before assuming it is broken. Never test against it.
