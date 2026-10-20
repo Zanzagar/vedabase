@@ -1,0 +1,21 @@
+# Scripts and docs only. The VedaBase program and infobases are copyrighted
+# (Bhaktivedanta Archives, BBT) and are fetched at install time into
+# VEDABASE_HOME; never commit them, or anything an install produced.
+*.nfo
+*.NFO
+*.sdw
+*.SDW
+*.lcf
+*.exe
+*.EXE
+*.ttf
+*.TTF
+*.wav
+*.WAV
+*.deb
+*.tar
+*.tar.*
+*.zip
+/downloads/
+/prefix/
+__pycache__/

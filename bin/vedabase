@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+# vedabase: open the Bhaktivedanta VedaBase (Folio Views 4.3 under Wine).
+set -euo pipefail
+
+VB_REPO=$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd)
+# shellcheck source=../lib/common.sh
+source "$VB_REPO/lib/common.sh"
+# shellcheck source=../lib/display.sh
+source "$VB_REPO/lib/display.sh"
+vb_init_paths
+
+usage() {
+  cat <<EOF
+Usage: vedabase [COMMAND] [INFOBASE]
+
+  open [INFOBASE]   open it in a window on this desktop (needs \$DISPLAY:
+                    a Linux desktop, WSLg, or ssh -X)
+  web  [INFOBASE]   headless machines: run it in a private display and serve
+                    that to your browser through an SSH tunnel
+  stop              close VedaBase and stop the browser viewer
+  status            show what is running
+  doctor            check the installation
+  backup [FILE]     save the prefix (program, infobases, your notes) as .tar.gz
+  where             print where everything lives
+
+INFOBASE is vedabase (default), vanibase, help, or folio (Folio Views with no
+infobase; use File > Open). With no COMMAND: open if there is a display, web
+otherwise.
+EOF
+}
+
+infobase_arg() {
+  case ${1:-vedabase} in
+    vedabase) printf '%s\n' "$VB_APP_WIN\\Nfo\\Bhaktivedanta Vedabase 2003.sdw" ;;
+    vanibase) printf '%s\n' "$VB_APP_WIN\\Nfo\\VaniBase_25.sdw" ;;
+    help) printf '%s\n' "$VB_APP_WIN\\Nfo\\Foliohlp.nfo" ;;
+    folio) printf '\n' ;;
+    *) vb_die "unknown infobase '$1' (use vedabase, vanibase, help or folio)" ;;
+  esac
+}
+
+require_install() {
+  vb_installed || vb_die "VedaBase is not installed in $VB_PREFIX; run install.sh first"
+}
+
+# Start Views.exe detached. DESKTOP (WxH) puts it in a Wine virtual desktop,
+# which supplies window frames where no window manager runs.
+launch() { # INFOBASE [DESKTOP]
+  local arg cmd=(wine)
+  arg=$(infobase_arg "$1")
+  [[ $1 == vanibase && ! -f $VB_APP_DIR/Nfo/VaniBase_25.sdw ]] &&
+    vb_die "VaniBase is not installed (install.sh was run with --no-vanibase)"
+  [[ -n ${2:-} ]] && cmd+=(explorer "/desktop=VedaBase,$2")
+  cmd+=("$VB_APP_WIN\\Views.exe")
+  [[ -n $arg ]] && cmd+=("$arg")
+  mkdir -p "$VB_LOGS"
+  (cd "$VB_APP_DIR" && setsid "${cmd[@]}" >>"$VB_LOGS/views.log" 2>&1 </dev/null &)
+}
+
+cmd_open() {
+  require_install
+  [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]] ||
+    vb_die "no display here; use 'vedabase web', or connect with ssh -X"
+  vb_env
+  launch "${1:-vedabase}"
+}
+
+web_url() {
+  printf 'http://localhost:%s/vnc.html?autoconnect=1&resize=scale&reconnect=1&password=%s\n' \
+    "$(vb_web_port)" "$(<"$VB_RUN/web/password")"
+}
+
+cmd_web() {
+  require_install
+  local geom=${VEDABASE_WEB_GEOMETRY:-1600x1000} host port
+  [[ -x /usr/bin/xkbcomp ]] ||
+    vb_die "the browser viewer needs x11-xkb-utils (sudo apt-get install x11-xkb-utils, then re-run install.sh); on a desktop use 'vedabase open'"
+  vb_env
+  vb_web_start "$geom"
+  # Fill the virtual desktop: Folio restores its window to AppPosition
+  # (left,top,right,bottom) and does not maximize under Wine by itself.
+  wine reg add 'HKCU\Software\VedaBase\4\Views\Frame\Layout' /v AppPosition \
+    /d "0,0,${geom/x/,}" /f >/dev/null 2>&1 || true
+  launch "${1:-vedabase}" "$geom"
+  host=$(hostname -f 2>/dev/null || hostname)
+  port=$(vb_web_port)
+  cat <<EOF
+
+VedaBase is running in a private display on $host.
+
+1. On your own computer, open a tunnel (leave it running):
+     ssh -N -L $port:127.0.0.1:$port $USER@$host
+   (Tabby: add a local port forward $port -> 127.0.0.1:$port to the profile instead.)
+2. Open in a browser:
+     $(web_url)
+
+Copy text out through the clipboard tab on the noVNC side panel.
+Stop it with: vedabase stop
+EOF
+}
+
+cmd_stop() {
+  vb_env
+  vb_wine_stop
+  vb_web_stop
+  vb_say "Stopped"
+}
+
+cmd_status() {
+  local pids
+  pids=$(vb_prefix_pids | paste -sd' ')
+  printf 'install:  %s\n' "$(vb_installed && echo "$VB_APP_DIR" || echo 'not installed')"
+  if [[ -n $pids ]]; then
+    printf 'wine:     running (pids %s)\n' "$pids"
+  else
+    printf 'wine:     not running\n'
+  fi
+  if vb_display_alive web && vb_websockify_alive; then
+    printf 'web:      %s\n' "$(web_url)"
+  else
+    printf 'web:      off\n'
+  fi
+}
+
+cmd_doctor() {
+  local ok=1 f
+  check() { # DESCRIPTION COMMAND...
+    if "${@:2}" >/dev/null 2>&1; then printf '  ok    %s\n' "$1"; else printf '  FAIL  %s\n' "$1"; ok=0; fi
+  }
+  vb_env
+  echo "VEDABASE_HOME=$VB_HOME"
+  check "Wine runs ($VB_WINE_NAME)" wine --version
+  check "prefix exists" test -f "$VB_PREFIX/system.reg"
+  check "Folio Views installed" test -f "$VB_APP_DIR/Views.exe"
+  check "VedaBase 25 infobase" test -f "$VB_APP_DIR/Nfo/VedaBase_25.nfo"
+  check "VedaBase shadow file" test -f "$VB_APP_DIR/Nfo/Bhaktivedanta Vedabase 2003.sdw"
+  check "VaniBase 25 infobase (optional)" test -f "$VB_APP_DIR/Nfo/VaniBase_25.nfo"
+  f=$(find "$VB_PREFIX/drive_c/windows/Fonts" -maxdepth 1 -iname 'balaram_.ttf' 2>/dev/null)
+  check "diacritic fonts in C:\\windows\\Fonts" test -n "$f"
+  check "launcher on PATH" command -v vedabase
+  if [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; then
+    echo "  info  display ${DISPLAY:-$WAYLAND_DISPLAY}: 'vedabase open' will show a window here"
+  else
+    echo "  info  no display: use 'vedabase web' (or ssh -X)"
+  fi
+  ((ok)) || return 1
+}
+
+cmd_backup() {
+  require_install
+  local out=${1:-$VB_HOME/backups/vedabase-prefix-$(date +%Y%m%d).tar.gz}
+  vb_env
+  [[ -z $(vb_prefix_pids) ]] || vb_die "VedaBase is running; close it (vedabase stop) first"
+  mkdir -p -- "$(dirname -- "$out")"
+  vb_say "Saving $VB_PREFIX to $out"
+  tar -C "$VB_HOME" -czf "$out" prefix
+  vb_say "Restore elsewhere with: install.sh --restore $out"
+}
+
+cmd_where() {
+  cat <<EOF
+home      $VB_HOME
+prefix    $VB_PREFIX
+program   $VB_APP_DIR
+downloads $VB_DOWNLOADS
+logs      $VB_LOGS
+EOF
+}
+
+main() {
+  local sub=${1:-}
+  case $sub in
+    -h | --help | help) usage ;;
+    open | web | stop | status | doctor | backup | where)
+      shift
+      "cmd_$sub" "$@" ;;
+    vedabase | vanibase | folio) # "vedabase vanibase" reads naturally too
+      shift
+      if [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; then cmd_open "$sub"; else cmd_web "$sub"; fi ;;
+    '')
+      if [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; then cmd_open; else cmd_web; fi ;;
+    *)
+      usage >&2
+      exit 2 ;;
+  esac
+}
+
+main "$@"
