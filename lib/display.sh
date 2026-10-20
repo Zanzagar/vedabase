@@ -40,12 +40,15 @@ vb_display_start() {
   n=$(vb_free_display) || vb_die "no free X display number between :40 and :99"
   rm -f -- "$d/xauth" "$d/vnc.sock"
   (umask 077 && : >"$d/xauth")
-  xauth -q -f "$d/xauth" add ":$n" . "$(vb_cookie)"
+  # Fed on stdin: argv is readable by every user on a shared machine.
+  printf 'add :%s . %s\n' "$n" "$(vb_cookie)" | xauth -q -f "$d/xauth" source -
   # -rfbport -1 turns the TCP listener off (0 would mean 5900+display on every
-  # interface); -localhost is a second guard in case that ever changes.
+  # interface); -localhost is a second guard in case that ever changes. Wine's
+  # virtual desktop cannot follow a resized screen, so resizing is refused.
   local args=(":$n" -auth "$d/xauth" -geometry "$geom" -depth 24 -dpi 96
     -rfbport -1 -localhost -rfbunixpath "$d/vnc.sock" -rfbunixmode 0600
-    -nolisten tcp -desktop VedaBase -SecurityTypes "$sec" -AlwaysShared)
+    -nolisten tcp -desktop VedaBase -SecurityTypes "$sec" -AlwaysShared
+    -AcceptSetDesktopSize=0)
   [[ $sec == VncAuth ]] && args+=(-rfbauth "$d/vncpasswd")
   setsid Xtigervnc "${args[@]}" >"$d/xvnc.log" 2>&1 </dev/null &
   local pid=$!

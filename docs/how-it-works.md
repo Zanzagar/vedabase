@@ -118,9 +118,12 @@ journel has no display, so `vedabase web` makes one. Every part runs as you,
 with no root:
 
 - **TigerVNC's `Xvnc`**, from the Ubuntu package unpacked under
-  `tools/`. It takes an X cookie, and serves VNC only on a unix socket with
-  mode 0600. It does need `xkbcomp` at `/usr/bin` (package `x11-xkb-utils`),
-  because the keymap compiler's path is compiled into it.
+  `tools/`. It takes an X cookie, passed to `xauth` on stdin because every
+  user on journel can read command lines. It serves VNC only on a unix socket
+  with mode 0600. `-rfbport -1` is essential: `-rfbport 0` still opens TCP
+  5900+N on every interface, as the first test run showed. It does need
+  `xkbcomp` at `/usr/bin` (package `x11-xkb-utils`), because the keymap
+  compiler's path is compiled into it.
 - **websockify + noVNC**, also unpacked from Ubuntu packages. websockify is
   started with the system `/usr/bin/python3`, because the package is built for
   it. It listens on `127.0.0.1:6080`, and the VNC password (in
@@ -146,6 +149,15 @@ Checked 2026-10-19 on Ubuntu 24.04 with Wine 11.0:
 - A search for "krsna Bhaktisiddhanta" in VaniBase 25 (518,550 records)
   returned 50 hits. VedaBase's language module (`nlsveda.dll`) works, since the
   query matched diacritic forms.
+- The browser path, end to end, through headless Chromium and noVNC. The page
+  connects with the printed password and refuses a wrong one ("Authentication
+  failure"). Typing a query into Folio's search box through the browser found
+  Bg 2.13 quoted in a 1975 lecture.
+- Diacritics render the same under `LANG=C.UTF-8`, WSL's default, as under
+  `en_US.UTF-8`, so the launcher sets no locale.
+- Two clean unattended installs ran from scratch: one downloading from Drive,
+  one from `--source` with a local copy. Re-running `install.sh` on a finished
+  install repairs it without touching the prefix.
 
 ## The license you accept
 

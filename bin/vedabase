@@ -57,11 +57,16 @@ launch() { # INFOBASE [DESKTOP]
   (cd "$VB_APP_DIR" && setsid "${cmd[@]}" >>"$VB_LOGS/views.log" 2>&1 </dev/null &)
 }
 
+# One prefix shows on one display at a time: a second Wine process would join
+# the running session wherever that is.
+web_running() { vb_display_alive web && vb_websockify_alive; }
+
 cmd_open() {
   require_install
   [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]] ||
     vb_die "no display here; use 'vedabase web', or connect with ssh -X"
   vb_env
+  ! web_running || vb_die "VedaBase is running in the browser viewer; use that, or 'vedabase stop' first"
   launch "${1:-vedabase}"
 }
 
@@ -76,6 +81,8 @@ cmd_web() {
   [[ -x /usr/bin/xkbcomp ]] ||
     vb_die "the browser viewer needs x11-xkb-utils (sudo apt-get install x11-xkb-utils, then re-run install.sh); on a desktop use 'vedabase open'"
   vb_env
+  web_running || [[ -z $(vb_prefix_pids) ]] ||
+    vb_die "VedaBase is already open on a desktop; close it, or run 'vedabase stop', first"
   vb_web_start "$geom"
   # Fill the virtual desktop: Folio restores its window to AppPosition
   # (left,top,right,bottom) and does not maximize under Wine by itself.

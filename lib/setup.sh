@@ -14,7 +14,8 @@ vb_make_prefix() {
   vb_say "Creating the Wine prefix"
   mkdir -p "$VB_PREFIX"
   {
-    wineboot --init
+    # winegstreamer= sidesteps a known hang while GStreamer plugins load.
+    WINEDLLOVERRIDES="$WINEDLLOVERRIDES;winegstreamer=" wineboot --init
     wineserver -w
     # Tāraka's CrossOver report: VedaBase crashed in a Windows 10 bottle; 7 or XP worked.
     wine winecfg /v win7
