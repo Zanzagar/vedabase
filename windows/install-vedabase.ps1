@@ -376,12 +376,29 @@ function Remove-Staging {
 }
 
 # Shadow files kept aside before a wizard run go back afterwards, even if a
-# restart cut that run short: the list of them stays until they are back.
+# restart cut that run short: the list of them stays until they are back. A
+# file that matches neither the saved copy nor the one the installer ships
+# holds notes made since; it is kept beside the saved copy, never overwritten.
 function Restore-Notes {
   if (-not (Test-Path -LiteralPath $SdwPending) -or -not (Test-Path -LiteralPath $NfoDir)) { return }
+  $shipped = @{}
+  foreach ($row in Read-Table $Manifest) {
+    if ($row[1] -like '*.sdw') { $shipped[($row[1] -split '/')[-1]] = $row[3] }
+  }
   foreach ($name in @(Get-Content -LiteralPath $SdwPending)) {
     $saved = Join-Path $SdwBackup $name
-    if ($name -and (Test-Path -LiteralPath $saved)) { Copy-Item -LiteralPath $saved -Destination (Join-Path $NfoDir $name) -Force }
+    $dest = Join-Path $NfoDir $name
+    if (-not $name -or -not (Test-Path -LiteralPath $saved)) { continue }
+    if (Test-Path -LiteralPath $dest) {
+      $now = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash
+      if ($now -eq (Get-FileHash -LiteralPath $saved -Algorithm SHA256).Hash) { continue }
+      if ($now -ne $shipped[$name]) {
+        $newer = Join-Path $SdwBackup ('{0}.newer-{1:yyyyMMdd-HHmmss}' -f $name, (Get-Date))
+        Copy-Item -LiteralPath $dest -Destination $newer
+        Warn "$name changed after the setup was interrupted. Your earlier notes are back in place, and the newer file is kept as $newer."
+      }
+    }
+    Copy-Item -LiteralPath $saved -Destination $dest -Force
   }
   Remove-Item -LiteralPath $SdwPending -Force
   Say "Kept your existing notes and highlights (.sdw files; a copy stays in $SdwBackup)"

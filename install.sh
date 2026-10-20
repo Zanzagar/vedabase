@@ -89,15 +89,25 @@ on_exit() {
     wineserver -k >/dev/null 2>&1 || true
     vb_display_stop install || true
   fi
+  if [[ -n ${stage:-} && -d $stage ]]; then rm -rf -- "$stage"; fi
+  # A restore cut short puts the prefix it was replacing back.
+  if [[ -n ${old_prefix:-} && -d $old_prefix ]] && ! vb_installed; then
+    { rm -rf -- "$VB_PREFIX" && mv -T -- "$old_prefix" "$VB_PREFIX"; } || true
+  fi
   vb_warn "install.sh did not finish; logs are in ${VB_LOGS:-}. Running it again continues where it stopped."
 }
 trap on_exit EXIT
+# Without these, Ctrl-C or a closed terminal ends the script without the EXIT trap.
+trap 'exit 130' INT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
 vb_say "Installing into $VB_HOME"
 
 skip_vani=''
 ((vanibase)) || skip_vani=VaniBase/
-if [[ -z $restore ]] && ! vb_installed; then
-  # Decide these before downloading 1.1 GB.
+if [[ -z $restore ]] && { ((reinstall)) || ! vb_installed; }; then
+  # Decide these before downloading 1.1 GB, or deleting the prefix. The space
+  # an old prefix frees for --reinstall is counted as what is already there.
   [[ -n ${VEDABASE_INSTALL_DISPLAY:-} || -n ${DISPLAY:-} ]] || vb_can_run_xvnc ||
     vb_die "Install.exe needs a display. Run once:  sudo apt-get install x11-xkb-utils xkb-data  (or run this from a desktop session)"
   # About 4 GB in all, less whatever an earlier run already put here.
@@ -121,24 +131,43 @@ vb_env
 if ((reinstall)) && [[ -d $VB_PREFIX ]]; then
   [[ -f $VB_PREFIX/system.reg || -d $VB_PREFIX/drive_c || -z $(ls -A -- "$VB_PREFIX") ]] ||
     vb_die "$VB_PREFIX is not a Wine prefix, so it is not deleted; move it away and run again"
+fi
+
+stage='' old_prefix=''
+if [[ -n $restore ]]; then
+  [[ ! -e $VB_PREFIX ]] || ((reinstall)) || vb_die "$VB_PREFIX already exists; add --reinstall to replace it"
+  # Unpacked aside and only its prefix/ kept: a backup must not be able to
+  # replace Wine, the helper tools or these scripts. This comes before anything
+  # is replaced, so a wrong or damaged file costs nothing.
+  vb_say "Unpacking $restore"
+  stage=$(mktemp -d "$VB_HOME/restore.XXXXXX")
+  if ! tar -C "$stage" -xzf "$restore" || [[ ! -d $stage/prefix || -L $stage/prefix ]]; then
+    vb_die "$restore is not a backup made by 'vedabase backup'; nothing was changed"
+  fi
+fi
+
+if ((reinstall)) && [[ -d $VB_PREFIX ]]; then
   vb_wine_stop
-  vb_say "Removing the old prefix"
-  rm -rf -- "$VB_PREFIX"
+  if [[ -n $restore ]]; then # kept until the restored prefix is known to work
+    old_prefix=$VB_PREFIX.before-restore-$(date +%Y%m%d-%H%M%S)
+    mv -T -- "$VB_PREFIX" "$old_prefix"
+  else
+    vb_say "Removing the old prefix"
+    rm -rf -- "$VB_PREFIX"
+  fi
 fi
 
 if [[ -n $restore ]]; then
-  [[ ! -e $VB_PREFIX ]] || vb_die "$VB_PREFIX already exists; add --reinstall to replace it"
   vb_say "Restoring the prefix from $restore"
-  # Unpacked aside and only its prefix/ kept: a backup must not be able to
-  # replace Wine, the helper tools or these scripts.
-  stage=$(mktemp -d "$VB_HOME/restore.XXXXXX")
-  if ! tar -C "$stage" -xzf "$restore" || [[ ! -d $stage/prefix || -L $stage/prefix ]]; then
-    rm -rf -- "$stage"
-    vb_die "$restore is not a backup made by 'vedabase backup'"
-  fi
   mv -T -- "$stage/prefix" "$VB_PREFIX"
   rm -rf -- "$stage"
-  vb_installed || vb_die "$restore did not contain a finished install"
+  stage=''
+  if ! vb_installed; then # the exit trap puts back any prefix it replaced
+    rm -rf -- "$VB_PREFIX"
+    vb_die "$restore does not hold a finished install; nothing was changed"
+  fi
+  if [[ -n $old_prefix ]]; then rm -rf -- "$old_prefix"; fi
+  old_prefix=''
 fi
 
 if ! vb_installed; then
@@ -156,7 +185,7 @@ if ! vb_installed; then
     in_wizard=1
     vb_display_start install 1600x1000 None
   else
-    vb_warn "x11-xkb-utils is not installed, so the installer runs on your screen ($DISPLAY). Leave the mouse alone until it finishes."
+    vb_warn "x11-xkb-utils is not installed, so the installer runs on your screen (${DISPLAY:-}). Leave the mouse alone until it finishes."
     vb_ensure_pkgs deps xdotool
   fi
   [[ -n $name ]] || name=$(getent passwd "$VB_USER" | cut -d: -f5 | cut -d, -f1) || true

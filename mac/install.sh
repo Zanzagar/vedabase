@@ -39,6 +39,10 @@ on_exit() {
   vb_warn "the install did not finish. Logs: $VB_LOGS (in Finder: Go > Go to Folder). Running the installer again continues where it stopped."
 }
 trap on_exit EXIT
+# Without these, Ctrl-C or a closed window ends the script without the EXIT trap.
+trap 'exit 130' INT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
 vb_say "Installing into $VB_HOME"
 # Keep the Mac awake while this runs: the downloads and the wizard take a while.
 caffeinate -i -w $$ >/dev/null 2>&1 &

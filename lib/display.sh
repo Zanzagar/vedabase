@@ -55,8 +55,8 @@ vb_display_start() {
     return 0
   fi
   sock=$(vb_sock "$name")
-  rm -f -- "$d/xauth" "$d/displayfd" "$sock"
-  (umask 077 && : >"$d/xauth")
+  rm -f -- "$d/xauth" "$sock"
+  (umask 077 && : >"$d/xauth" && : >"$d/displayfd") # displayfd exists before Xvnc writes to it
   # Xvnc accepts the cookie whatever display it is filed under; clients look it
   # up by display, so it is filed again under the one Xvnc picks. Fed on
   # stdin: argv is readable by every user on a shared machine.
