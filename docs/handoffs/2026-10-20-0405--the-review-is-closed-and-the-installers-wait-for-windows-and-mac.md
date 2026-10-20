@@ -3,9 +3,9 @@ handoff:      2026-10-20-0405--the-review-is-closed-and-the-installers-wait-for-
 written:      2026-10-20 04:05 -0400
 sessionStart: 2026-10-20 01:42 -0400
 sessionId:    7dc8950f-ca3e-4233-be0f-553ad6a93b38
-agentRuns:    none of its own; wf_efcb88f5-f2e (session 7f53bfb5's review) finished during it, in that session's process; three Codex adversarial reviews (gpt-6-astra) of 58fcf94.., f69c896.., f77bd79..; the Windows test handed to the Atman session atman-linked-torvalds (Remote Control)
+agentRuns:    none of its own; wf_efcb88f5-f2e (session 7f53bfb5's review) finished during it, in that session's process; three Codex adversarial reviews (gpt-6-astra) of 58fcf94.., f69c896.., f77bd79..; the Windows tests by the Atman session (session_014PdJWh55CKdohV8zbKnLhV, over Remote Control), whose report is on the test PC and whose devotee summary is docs/windows-test-2026-10.md (1cb1300)
 branch:       main
-commits:      040e7ec..003bc40 (and claude-harness d1acdc2)
+commits:      040e7ec..1cb1300 (and claude-harness d1acdc2)
 visibility:   public since 2026-10-20 (Corey's decision, so Tāraka can see it)
 tests:        tests/linux-e2e.sh 34/34, tests/interrupt.sh 13/13, tests/rollback.sh 9/9, tests/mac-sim.sh 9/9 on 58eec55; ShellCheck, bash 3.2 -n, PowerShell parse clean
 supersedes:   none
@@ -15,14 +15,15 @@ supersedes:   none
 
 ## Where things stand
 
-`main` at the commit after `003bc40`, pushed to `Zanzagar/vedabase`, which Corey made
+`main` at the commit after `1cb1300`, pushed to `Zanzagar/vedabase`, which Corey made
 public on 2026-10-20 so that Tāraka can see it (the README's opening and the GitHub
 "About" were rewritten for visitors first). The review that session 7f53bfb5 started is
 closed: every verdict was checked against the code, the open ones fixed, then three Codex
 rounds, each acted on. The repository has adopted the claude-harness rules and commit
-gate. journel's own install runs the merged code. The first real Windows run was handed
-to the Atman session (`atman-linked-torvalds`, over Remote Control) at the end of this
-session; its result is not in this brief. State: `HANDOFF.md`.
+gate. journel's own install runs the merged code. The Windows installer then ran on a
+real PC (the Atman session, over Remote Control): it found four bugs, all fixed and the
+fixes run there, and wrote `docs/windows-test-2026-10.md` for devotees, which Corey's
+message to Tāraka links (keep that path). State: `HANDOFF.md`.
 
 ## Read first
 

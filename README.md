@@ -243,9 +243,9 @@ Copy the `.sdw` files somewhere safe before reinstalling or uninstalling.
 ## If something goes wrong
 
 Run the installer again first: it continues where it stopped. On Windows, if
-VedaBase opens with blank pages after you uninstalled and reinstalled it, sign
-out of Windows and back in (or restart). If that doesn't help, send whoever
-gave you this installer a description, plus:
+VedaBase opens with blank pages after you uninstalled and reinstalled it, try
+signing out of Windows and back in (or restarting). If that doesn't help, send
+whoever gave you this installer a description, plus:
 
 - **Windows:** a photo or screenshot of the error, and the log
   `C:\Program Files\VedaBase-Setup\install.log`.
