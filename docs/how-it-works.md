@@ -305,8 +305,9 @@ mode made every start ask for administrator rights; a stale recent-file entry;
 blank pages after an uninstall and reinstall in one sign-in (the fonts).
 
 **Not yet verified:** a real Mac; a second account, a standard user and an
-accepted restart on Windows; the font reload itself on Windows (the fix was
-proved by hand there); WineHQ bug 60494 on Apple Silicon; and
+accepted restart on Windows; a real uninstall and reinstall with the font
+reload in place (the reload itself ran on the test PC and the blank pages
+were fixed by the same steps by hand); WineHQ bug 60494 on Apple Silicon; and
 whether Windows itself needs the `VedaBase_25.nfo` link.
 
 ## The license you accept

@@ -508,12 +508,12 @@ function Remove-OldCompatMode {
       [string]$values.PSObject.Properties[$exe].Value -like '*WINXPSP2*')) { return }
   $null = Invoke-Tool 'reg.exe' @('delete', 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers',
     '/v', $exe, '/f', '/reg:64')
+  $flushed = $false
   try {
     Add-Type -Namespace VedaBaseSetup -Name AppCompat -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern bool BaseFlushAppcompatCache();'
-    [void][VedaBaseSetup.AppCompat]::BaseFlushAppcompatCache()
-  } catch {
-    Warn 'If VedaBase still asks for administrator rights when it starts, restart Windows once.'
-  }
+    $flushed = [VedaBaseSetup.AppCompat]::BaseFlushAppcompatCache()
+  } catch { }
+  if (-not $flushed) { Warn 'If VedaBase still asks for administrator rights when it starts, restart Windows once.' }
   Say 'Removed Windows XP compatibility mode from Views.exe'
 }
 

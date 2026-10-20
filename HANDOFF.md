@@ -70,7 +70,11 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   files; the fonts Register-Fonts had loaded into that Windows sign-in stayed loaded but
   unusable, and the reinstall did not reload them, so everything drawn in VedaBase's own
   fonts was blank until the next sign-in. Register-Fonts now unloads and reloads all 51
-  and broadcasts WM_FONTCHANGE (the same steps fixed it by hand on Atman).** The tester's report and evidence are on Atman in
+  and broadcasts WM_FONTCHANGE (the same steps fixed it by hand on Atman).** **► Verified
+  on Atman (Windows PowerShell 5.1), no reboot or sign-out: Remove-OldCompatMode removed
+  a planted XP layer and VedaBase then opened with no UAC; the transcripts end cleanly;
+  after 6151aa1 each font is loaded exactly once and VedaBase and VaniBase render. Not
+  re-run with the fix: a real uninstall and reinstall in one sign-in.** The tester's report and evidence are on Atman in
   `/home/corey/projects/vedabase-testing/evidence/`. Not run there: a second account, a
   standard user, an accepted restart, a note saved without elevation, SmartScreen.**
 - **Found this session, worth knowing:** Install.exe's launcher checks free space in
