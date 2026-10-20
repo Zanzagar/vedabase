@@ -72,7 +72,7 @@ function Fail([string]$Message) {
   Write-Host "error: $Message" -ForegroundColor Red
   Write-Host ''
   Read-Host 'Press Enter to close this window' | Out-Null
-  exit 1
+  exit 2  # tells Install-VedaBase-Windows.cmd the error was shown and Enter pressed
 }
 
 # reg.exe reports even success on stderr, which Windows PowerShell
@@ -179,7 +179,10 @@ function Test-CurlRevokeBestEffort {
 
 function Get-DriveFile($Row, [string]$Path) {
   $id, $rel, $size, $sha = $Row
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Path) | Out-Null
+  # Only when missing: Windows PowerShell 5.1's New-Item -Force refuses a drive
+  # root ("The path is not of a legal form"), and C:\Install.exe's folder is C:\.
+  $dir = Split-Path -Parent $Path
+  if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
   $url = $DriveUrl + $id
   $curl = "$env:SystemRoot\System32\curl.exe"
   $extra = @()

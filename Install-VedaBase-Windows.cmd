@@ -10,4 +10,5 @@ if not exist "%~dp0windows\install-vedabase.ps1" (
   exit /b 1
 )
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0windows\install-vedabase.ps1" %*
-if not "%errorlevel%"=="0" pause
+rem 2: the installer showed its error and waited for Enter already.
+if not "%errorlevel%"=="0" if not "%errorlevel%"=="2" pause
