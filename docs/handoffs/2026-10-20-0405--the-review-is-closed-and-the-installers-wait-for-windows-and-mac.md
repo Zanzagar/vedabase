@@ -32,12 +32,12 @@ session; its result is not in this brief. State: `HANDOFF.md`.
 
 ## Highest-value work
 
-1. **Windows: the open question.** The Atman session's runs (HANDOFF.md, State) passed
-   every `docs/testing.md` check with *Complete*, and found three bugs, all fixed. After
-   an uninstall, a *Custom* reinstall left VedaBase's panes blank. Settle whether
-   *Custom* or the uninstall causes it (reinstall with *Complete* after an uninstall;
-   compare the program folder with journel's, a working *Custom* install) before the
-   README's "choose Custom" is trusted. It is the platform most devotees will use.
+1. **Windows: the remaining checks.** The Atman session's runs (HANDOFF.md, State)
+   passed every `docs/testing.md` check and found four bugs, all fixed, the last being
+   blank pages after an uninstall and reinstall in one sign-in (stale fonts; *Custom*
+   was not at fault). Still unrun there: a second account, a standard user, an accepted
+   restart, and the font reload in a real uninstall-and-reinstall. It is the platform
+   most devotees will use.
 2. **A real Mac run**, Apple Silicon if possible (Corey suggests Anandini Lalita, who
    has a new MacBook, through Tāraka): Gatekeeper, Rosetta, the Fonts-window
    wait (which depends on `wine tasklist` behaving as it does on Linux), bug 60494.

@@ -236,6 +236,7 @@ function Register-Fonts {
     }
   }
   $added = @()
+  $present = @()
   foreach ($row in Read-Table $FontList) {
     $file, $name = $row
     $dest = "$env:windir\Fonts\$file"
@@ -243,19 +244,33 @@ function Register-Fonts {
       if (-not (Test-Path -LiteralPath "C:\Fonts\$file")) { Warn "Font $file is missing"; continue }
       Copy-Item -LiteralPath "C:\Fonts\$file" -Destination $dest
     }
+    $present += $dest
     if (-not $known.ContainsKey($file.ToLowerInvariant())) {
       New-ItemProperty -LiteralPath $key -Name $name -Value $file -PropertyType String -Force | Out-Null
       $added += $dest
     }
   }
-  if ($added) {
-    Say "Registered $($added.Count) fonts with Windows"
-    try {
-      Add-Type -Namespace VedaBaseSetup -Name Gdi -MemberDefinition '[System.Runtime.InteropServices.DllImport("gdi32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern int AddFontResource(string file);'
-      foreach ($f in $added) { [void][VedaBaseSetup.Gdi]::AddFontResource($f) }
-    } catch {
-      Warn 'The new fonts load at the next sign-in; restart Windows if the diacritics look wrong.'
+  if ($added) { Say "Registered $($added.Count) fonts with Windows" }
+  # Load every font into this sign-in afresh, not only the new ones. After an
+  # uninstall, which deletes the font files, and a reinstall, Windows keeps the
+  # old copies loaded but unusable, and everything VedaBase draws in its own
+  # fonts stays blank until the next sign-in (seen on Atman). A font loaded
+  # twice needs unloading twice, hence the loop.
+  try {
+    Add-Type -Namespace VedaBaseSetup -Name Gdi -MemberDefinition @'
+[DllImport("gdi32.dll", CharSet = CharSet.Unicode)] public static extern int AddFontResource(string file);
+[DllImport("gdi32.dll", CharSet = CharSet.Unicode)] public static extern bool RemoveFontResource(string file);
+[DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam, uint flags, uint timeout, out UIntPtr result);
+'@
+    foreach ($f in $present) {
+      for ($i = 0; $i -lt 16 -and [VedaBaseSetup.Gdi]::RemoveFontResource($f); $i++) { }
+      [void][VedaBaseSetup.Gdi]::AddFontResource($f)
     }
+    # WM_FONTCHANGE to every window; SMTO_ABORTIFHUNG skips any that hangs.
+    $result = [UIntPtr]::Zero
+    [void][VedaBaseSetup.Gdi]::SendMessageTimeout([IntPtr]0xffff, 0x001D, [UIntPtr]::Zero, [IntPtr]::Zero, 2, 5000, [ref]$result)
+  } catch {
+    Warn 'If VedaBase shows blank pages or wrong diacritics, sign out of Windows and back in.'
   }
 }
 

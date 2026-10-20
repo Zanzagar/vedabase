@@ -223,7 +223,10 @@ account. The phases pass a random token, so a run is never fooled by an old
      OK cannot skip them.
    - *Fonts:* it registers all 51 (`manifest/fonts.tsv`). Real Windows
      loads only registered fonts, which fits the README's "drag them onto
-     Fonts if the diacritics fail".
+     Fonts if the diacritics fail". It also unloads and reloads each one in
+     the current sign-in: the 2003 uninstaller deletes the font files, and
+     after a reinstall Windows kept the deleted copies loaded, so everything
+     VedaBase draws in its own fonts came out blank until the next sign-in.
    - *Swap folders:* Folio's swap and index folders move from the installing
      account's `TEMP` to `C:\Bhaktivedanta VedaBase 2003\Temp`, which every
      account can write. It matters: saving a large note spills Folio's index
@@ -293,16 +296,17 @@ Checked in October 2026 on Ubuntu 24.04 with Wine 11.0:
   wizard. The app it built opened VedaBase 25 with correct diacritics.
 
 Checked in October 2026 on one Windows 11 Home 25H2 PC (x64), with the README's
-steps but *Complete* chosen in the wizard: the downloads, the wizard, VedaBase
+steps (*Complete* first, then *Custom* after an uninstall): the downloads, the wizard, VedaBase
 and VaniBase opening, the diacritics at Bg 2.13, search, a note kept across
 restarts, no hang on exit, the fonts, the swap folders, Active Setup and the
 clean-up of `C:\`, and a second run that changes nothing. Found there and
 fixed: Windows PowerShell 5.1 refused to create a folder at `C:\`; Windows XP
-mode made every start ask for administrator rights; a stale recent-file entry.
+mode made every start ask for administrator rights; a stale recent-file entry;
+blank pages after an uninstall and reinstall in one sign-in (the fonts).
 
-**Not yet verified:** a real Mac; *Custom* on Windows (after an uninstall it
-left VedaBase's pages blank, cause unknown); a second account, a standard user
-and an accepted restart on Windows; WineHQ bug 60494 on Apple Silicon; and
+**Not yet verified:** a real Mac; a second account, a standard user and an
+accepted restart on Windows; the font reload itself on Windows (the fix was
+proved by hand there); WineHQ bug 60494 on Apple Silicon; and
 whether Windows itself needs the `VedaBase_25.nfo` link.
 
 ## The license you accept

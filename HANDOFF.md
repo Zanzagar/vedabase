@@ -63,9 +63,14 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   without it, so the installer no longer sets it, removes an earlier version's setting
   and flushes the compatibility cache; the wizard steps (a media player or "Pick an app"
   opens for INTRO.WAV, no Fonts window, restart prompts Cancel then OK, a pre-filled
-  name); a stale recent-file entry Install.exe writes. OPEN: after uninstalling,
+  name); a stale recent-file entry Install.exe writes. ~~OPEN: after uninstalling,
   a *Custom* reinstall (63c0764) showed blank panes; the cause (Custom, or the uninstall)
-  is unknown. The tester's report and evidence are on Atman in
+  is unknown.~~ **► Solved by the Atman session: not Custom (its files, system DLLs and
+  registry matched journel's working install). The 2003 uninstaller deletes the font
+  files; the fonts Register-Fonts had loaded into that Windows sign-in stayed loaded but
+  unusable, and the reinstall did not reload them, so everything drawn in VedaBase's own
+  fonts was blank until the next sign-in. Register-Fonts now unloads and reloads all 51
+  and broadcasts WM_FONTCHANGE (the same steps fixed it by hand on Atman).** The tester's report and evidence are on Atman in
   `/home/corey/projects/vedabase-testing/evidence/`. Not run there: a second account, a
   standard user, an accepted restart, a note saved without elevation, SmartScreen.**
 - **Found this session, worth knowing:** Install.exe's launcher checks free space in
@@ -87,9 +92,10 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 
 ## Open, in order
 
-1. ~~One real run each on Windows (Atman) and on a Mac~~ **Windows: settle the blank
-   panes** (State) before the README's "choose Custom" is trusted; then the checks the
-   Atman runs skipped. **Mac:** a field tester (Corey suggests Anandini Lalita, through
+1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
+   panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
+   **Windows:** the checks the Atman runs skipped (a second account, a standard user, an
+   accepted restart, the font reload in an uninstall-and-reinstall run). **Mac:** a field tester (Corey suggests Anandini Lalita, through
    Tāraka), following `docs/testing.md`.
    Everything Windows-specific (the elevated phase, Active Setup, the notes restore, the
   free-space filler) has only been read and parsed, never run.

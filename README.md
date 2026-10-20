@@ -27,7 +27,7 @@ undone ([details](#what-the-installers-add)):
 
 | Your computer | What to run | Status |
 | --- | --- | --- |
-| Windows 10 or 11 | double-click `Install-VedaBase-Windows.cmd` | tried on one Windows 11 PC; one open question (see [What's next](#whats-next)) |
+| Windows 10 or 11 | double-click `Install-VedaBase-Windows.cmd` | tested on one Windows 11 PC |
 | Linux (Ubuntu, Debian; also WSL) | `./install.sh` in a terminal | tested end to end on Ubuntu 24.04 |
 | macOS (Intel or Apple Silicon) | double-click `Install-VedaBase-Mac.command` | **not yet tried on a real Mac** |
 
@@ -242,8 +242,10 @@ Copy the `.sdw` files somewhere safe before reinstalling or uninstalling.
 
 ## If something goes wrong
 
-Run the installer again first: it continues where it stopped. If that doesn't
-help, send whoever gave you this installer a description, plus:
+Run the installer again first: it continues where it stopped. On Windows, if
+VedaBase opens with blank pages after you uninstalled and reinstalled it, sign
+out of Windows and back in (or restart). If that doesn't help, send whoever
+gave you this installer a description, plus:
 
 - **Windows:** a photo or screenshot of the error, and the log
   `C:\Program Files\VedaBase-Setup\install.log`.
@@ -324,10 +326,6 @@ The installers get better as reports come in:
 
 - **The first run on a Mac**, and runs on more Windows PCs. What they show
   will correct these steps wherever they differ.
-- **One open question on Windows.** On the test PC, uninstalling VedaBase and
-  installing it again with *Custom* left its pages blank, although a first
-  install with *Complete* worked. Which of the two caused it is being
-  checked; until then, avoid uninstalling and reinstalling to test it.
 - **What Windows updates broke.** Some Folio features have stopped working on
   newer Windows. Once it is known which, the installers can add workarounds,
   as they already try to for the freeze on exit.

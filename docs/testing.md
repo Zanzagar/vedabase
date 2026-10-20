@@ -62,6 +62,9 @@ that once with this list before relying on either.
     "Updating Index...".
 - Accept the installer's restart prompt once, on purpose, then run the `.cmd`
   again. It should finish cleanly.
+- Uninstall VedaBase (*Settings → Apps*), delete its folder, and install it
+  again without signing out of Windows. VedaBase must still show text (an
+  earlier version left its pages blank until the next sign-in).
 - Note whether a media player, or Windows asking which app to use, opened at
   the start (the installer plays `C:\Spec\INTRO.WAV`), and record the restart
   messages word for word.
