@@ -21,6 +21,11 @@ MAC_WINE_SHA256=b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388
 MAC_APPS=$HOME/Applications
 
 [[ $(uname -s) == Darwin ]] || vb_die "this is the macOS installer; on Linux run ./install.sh"
+# Gcenx's builds need macOS 10.15.4 or later.
+IFS=. read -r mac_major mac_minor mac_patch _ <<<"$(sw_vers -productVersion).0.0"
+if ((mac_major == 10 && (mac_minor < 15 || (mac_minor == 15 && mac_patch < 4)))); then
+  vb_die "needs macOS 10.15.4 or later (this is $(sw_vers -productVersion))"
+fi
 
 vb_init_paths
 VB_WINE_DIR="$VB_HOME/wine/Wine Stable.app/Contents/Resources/wine"
@@ -37,7 +42,23 @@ if [[ ! -x $VB_WINE_DIR/bin/wine ]]; then
   tarball=$VB_HOME/cache/wine-stable-osx64.tar.xz
   mkdir -p "$VB_HOME/cache" "$VB_HOME/wine"
   vb_say "Downloading Wine for macOS (185 MB)"
-  curl -fL -# --retry 3 -o "$tarball" "$MAC_WINE_URL"
+  if ! curl -fL -# --retry 3 -o "$tarball" "$MAC_WINE_URL"; then
+    # Gcenx retags releases and removes old files. Fall back to the newest
+    # stable build, checked against the SHA-256 GitHub publishes for it.
+    vb_warn "the pinned Wine build is gone; looking up the newest stable one"
+    # JavaScript for Automation parses the JSON: a stock Mac has no real python3.
+    releases=$(curl -fsSL 'https://api.github.com/repos/Gcenx/macOS_Wine_builds/releases?per_page=30')
+    read -r MAC_WINE_URL MAC_WINE_SHA256 < <(osascript -l JavaScript -e '
+      function run(argv) {
+        for (const r of JSON.parse(argv[0]))
+          for (const a of r.assets)
+            if (/^wine-stable-.*-osx64[.]tar[.]xz$/.test(a.name) && /^sha256:/.test(a.digest || ""))
+              return a.browser_download_url + " " + a.digest.slice(7);
+        return "";
+      }' "$releases") ||
+      vb_die "no stable Wine build found at github.com/Gcenx/macOS_Wine_builds"
+    curl -fL -# --retry 3 -o "$tarball" "$MAC_WINE_URL"
+  fi
   [[ $(vb_sha256 <"$tarball") == "$MAC_WINE_SHA256" ]] || vb_die "checksum mismatch for $MAC_WINE_URL"
   tar -xJf "$tarball" -C "$VB_HOME/wine"
   rm -f "$tarball"
@@ -51,6 +72,10 @@ vb_fetch_files
 if ! vb_installed; then
   [[ ! -e $VB_PREFIX ]] || rm -rf "$VB_PREFIX" # a half-made prefix from an interrupted run
   vb_make_prefix
+  # Let Cmd+C / Cmd+V work as Ctrl+C / Ctrl+V in Folio.
+  for key in LeftCommandIsCtrl RightCommandIsCtrl; do
+    wine reg add 'HKCU\Software\Wine\Mac Driver' /v "$key" /t REG_SZ /d Y /f >>"$VB_LOGS/wine.log" 2>&1
+  done
   vb_stage_installer
   cat <<'EOF'
 

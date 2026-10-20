@@ -127,13 +127,24 @@ No CrossOver is needed. Everything lives in
 
 ### If macOS will not open the installer
 
-macOS blocks scripts downloaded from the internet unless they are notarized by
-Apple. Either:
+macOS blocks scripts downloaded from the internet unless Apple has notarized
+them:
 
-- open **System Settings → Privacy & Security**, scroll down, and click
-  **Open Anyway** next to the message about `Install-VedaBase-Mac.command`, or
-- open **Terminal**, type `bash ` (with a space), drag
+- **macOS 15 or later:** click **Done** on the warning. Open
+  **System Settings → Privacy & Security**, scroll down, and click
+  **Open Anyway** next to `Install-VedaBase-Mac.command`. Do this within about
+  an hour. Enter your password, then click **Open**.
+- **macOS 14 or earlier:** Control-click the file and choose **Open**.
+- **Any version:** open **Terminal**, type `bash ` (with a space), drag
   `Install-VedaBase-Mac.command` into the window, and press Return.
+
+### How long the free Mac route will work
+
+The free Wine for macOS is an Intel program. On Intel Macs it runs on macOS
+10.15.4 through 26. On Apple Silicon it runs through Apple's Rosetta 2, which
+Apple says will be limited to games from macOS 28 (expected autumn 2027). After
+that, the free route probably ends on Apple Silicon Macs. The only announced
+alternative is paid CrossOver. Check again before then.
 
 ## Your notes are in the shadow files
 
