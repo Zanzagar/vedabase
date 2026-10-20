@@ -6,6 +6,7 @@ set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/linux-e2e H=$B/home VH=$B/vb PORT=${VB_TEST_PORT:-6091}
 rm -rf -- "$B"; mkdir -p "$H"; chmod 700 "$B"
+isolate "$H"
 run() { HOME=$H "$@"; }
 mapfile -t src < <(source_args)
 cd "$REPO" || exit 1
@@ -54,12 +55,19 @@ echo 'stands for your notes' >"$VH/prefix/drive_c/notes-marker.txt"
 head -c 50000000 "$B/backup.tar.gz" >"$B/truncated.tar.gz"
 tar -C "$B" -czf "$B/no-prefix.tar.gz" --files-from /dev/null
 mkdir -p "$B/fake/prefix/drive_c" && tar -C "$B/fake" -czf "$B/unfinished.tar.gz" prefix
-for bad in truncated no-prefix unfinished; do
+# Stamped as finished, yet missing the program and the infobase.
+mkdir -p "$B/stamped/prefix/drive_c" && : >"$B/stamped/prefix/.vedabase-installed" &&
+  tar -C "$B/stamped" -czf "$B/stamped.tar.gz" prefix
+# Incomplete, with a folder it leaves unwritable once unpacked.
+mkdir -p "$B/locked/prefix/drive_c/locked" && : >"$B/locked/prefix/drive_c/locked/f" &&
+  chmod 555 "$B/locked/prefix/drive_c/locked" && tar -C "$B/locked" -czf "$B/unwritable.tar.gz" prefix &&
+  chmod 755 "$B/locked/prefix/drive_c/locked"
+for bad in truncated no-prefix unfinished stamped unwritable; do
   run ./install.sh --home "$VH" --reinstall --restore "$B/$bad.tar.gz" >"$B/restore-$bad.log" 2>&1
   check "a $bad backup is refused" test $? -ne 0
   check "after the $bad backup the existing prefix is still there" test -f "$VH/prefix/drive_c/notes-marker.txt"
 done
-check "no staging or set-aside folder is left" test -z "$(compgen -G "$VH/restore.*")$(compgen -G "$VH/prefix.before-restore-*")"
+check "no staging or set-aside folder is left" test -z "$(compgen -G "$VH/restore.*")$(compgen -G "$VH/prefix.before-restore-*")$(compgen -G "$VH/prefix.rejected-*")"
 run "$H/.local/bin/vedabase" doctor >/dev/null 2>&1
 check "doctor still passes" test $? -eq 0
 finish

@@ -37,8 +37,8 @@ using it. Running an installer again is safe: it finishes whatever is missing.
 
 First, **S mode.** Windows in S mode runs only apps from the Microsoft Store,
 so neither the installer nor VedaBase can run there. *Settings → System →
-Activation* shows whether a PC is in S mode. Switching out of it is free but
-cannot be undone.
+Activation* (on Windows 10, *Settings → Update & Security → Activation*) shows
+whether a PC is in S mode. Switching out of it is free but cannot be undone.
 
 1. Double-click **`Install-VedaBase-Windows.cmd`**.
    - If an *"Open File – Security Warning"* appears, click **Run**.

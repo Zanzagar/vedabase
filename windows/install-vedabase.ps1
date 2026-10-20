@@ -404,6 +404,21 @@ function Restore-Notes {
   Say "Kept your existing notes and highlights (.sdw files; a copy stays in $SdwBackup)"
 }
 
+# Install.exe's launcher checks for 2 MB free on the TEMP drive in 32-bit
+# arithmetic (seen under Wine), refusing whenever the free space sits just
+# above a multiple of 4 GB. A filler file moves the free space clear of that
+# while the wizard starts; it never stops the install.
+function Add-SpaceFiller {
+  try {
+    $drive = New-Object System.IO.DriveInfo ([System.IO.Path]::GetPathRoot($env:TEMP))
+    if (($drive.AvailableFreeSpace % 4GB) -ge 64MB) { return $null }
+    $path = Join-Path $env:TEMP 'vedabase-space-filler.tmp'
+    $fs = [System.IO.File]::Create($path)
+    try { $fs.SetLength(128MB) } finally { $fs.Close() }
+    return $path
+  } catch { return $null }
+}
+
 function Invoke-Wizard {
   # Reinstalling over an earlier copy replaces its shadow files, which hold the
   # user's notes; keep them aside and put them back afterwards.
@@ -430,6 +445,7 @@ function Invoke-Wizard {
        Cancel. This window finishes the setup.
 
 '@
+  $filler = Add-SpaceFiller
   Start-Process -FilePath 'C:\Install.exe' -WorkingDirectory 'C:\'
   # The launcher hands over to irsetup.exe and exits; follow whichever runs.
   $fixed = $false
@@ -449,6 +465,7 @@ function Invoke-Wizard {
     Start-Sleep -Seconds 2
   }
 
+  if ($filler) { Remove-Item -LiteralPath $filler -Force -ErrorAction SilentlyContinue }
   Restore-Notes
   if (-not (Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe'))) {
     throw 'The installer did not finish (Views.exe is missing). Run this installer again to retry.'

@@ -41,6 +41,20 @@ vb_make_prefix() {
   fi
 }
 
+# Install.exe's launcher checks for 2 MB free on its TEMP drive (C:) in 32-bit
+# arithmetic, so it refuses ("You must have at least 2MB of free space on your
+# TEMP drive!") whenever the free space sits just above a multiple of 4 GiB.
+# When that is close, a filler of random bytes, which no filesystem can
+# compress away, moves the free space clear until the wizard is up.
+VB_SPACE_FILLER=.temp-space-filler
+vb_space_filler_add() {
+  local kb
+  kb=$(df -Pk "$VB_PREFIX/drive_c" 2>/dev/null | awk 'NR == 2 {print $4}') || kb=''
+  [[ -n $kb ]] && (((kb * 1024) % 4294967296 < 64 * 1048576)) || return 0
+  head -c 134217728 /dev/urandom >"$VB_PREFIX/$VB_SPACE_FILLER" 2>/dev/null || true
+}
+vb_space_filler_remove() { rm -f -- "$VB_PREFIX/$VB_SPACE_FILLER"; }
+
 # Ekanatha's README: Fonts\ Nfo\ Spec\ and Install.exe must sit at the root of C:\.
 vb_stage_installer() {
   local x
@@ -98,6 +112,7 @@ vb_installer_stuck() { # LAST_SCREEN
   local titles
   titles=$(vb_windows | cut -f2 | paste -sd'|')
   wineserver -k 2>/dev/null || true
+  vb_space_filler_remove
   vb_die "Install.exe stalled at screen '${1:-none}' (windows now: ${titles:-none}). Log: $VB_LOGS/installer.log. Run install.sh again; to watch the wizard, run it from a desktop with VEDABASE_INSTALL_DISPLAY=\$DISPLAY."
 }
 
@@ -110,6 +125,7 @@ vb_run_installer() { # REGISTERED_NAME
   local name=$1 log=$VB_LOGS/installer.log wid title acted last='' seen='' tries=0 typed=0
   local deadline=$((SECONDS + 1800)) idle_since=$SECONDS
   vb_say "Running Install.exe (driven automatically; takes a few minutes)"
+  vb_space_filler_add
   (cd "$VB_PREFIX/drive_c" && setsid wine 'C:\Install.exe' >>"$log" 2>&1 </dev/null &)
   sleep 3
   while ((SECONDS < deadline)); do
@@ -155,6 +171,7 @@ vb_run_installer() { # REGISTERED_NAME
         esac
       fi
       printf '%s\n' "$title" >>"$log"
+      vb_space_filler_remove # a wizard page means the launcher's check is behind us
       acted=$title
       last=$title
       vb_wait_change "$wid" "$title" 20 || true
@@ -210,6 +227,7 @@ vb_postinstall() {
   { wine reg delete 'HKCR\vedabase.noop' /f || true; } >>"$VB_LOGS/wine.log" 2>&1
   wineserver -w >>"$VB_LOGS/wine.log" 2>&1 || true
   vb_unstage_installer
+  vb_space_filler_remove
   : >"$VB_PREFIX/.vedabase-installed"
 }
 

@@ -124,6 +124,7 @@ if ! vb_installed; then
 
 EOF
   in_wizard=1
+  vb_space_filler_add
   (cd "$VB_PREFIX/drive_c" && wine 'C:\Install.exe' >>"$VB_LOGS/installer.log" 2>&1) || true
   # The launcher hands over to irsetup.exe, the wizard. Once that has gone,
   # end what it leaves open (the Fonts window, which can sit behind others),
@@ -144,6 +145,7 @@ EOF
     vb_say "When the installer has finished, close its remaining windows (the Fonts window may be behind this one)."
   fi
   wineserver -w
+  vb_space_filler_remove
   wineboot --restart >>"$VB_LOGS/installer.log" 2>&1 || true
   wineserver -w
   in_wizard=0

@@ -8,11 +8,12 @@ set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 : "${VB_TEST_BASH32:?set VB_TEST_BASH32 to a bash 3.2 binary (see tests/README.md)}"
 for t in Xtigervnc xdotool xauth; do
-  [[ -x $VB_TEST_TOOLS/usr/bin/$t ]] || { echo "no $t under VB_TEST_TOOLS=$VB_TEST_TOOLS"; exit 2; }
+  PATH=$VB_TEST_TOOLS/usr/bin:$PATH command -v "$t" >/dev/null || { echo "no $t in VB_TEST_TOOLS=$VB_TEST_TOOLS or on PATH"; exit 2; }
 done
 [[ -x $VB_TEST_WINE/bin/wine ]] || { echo "no Wine at VB_TEST_WINE=$VB_TEST_WINE"; exit 2; }
 B=$VB_TEST_WORK/mac-sim H=$B/home S=$B/shims
 rm -rf -- "$B"; mkdir -p "$H" "$S"; chmod 700 "$B"
+isolate "$H"
 VBH="$H/Library/Application Support/VedaBase"
 R="$VBH/wine/Wine Stable.app/Contents/Resources"
 mkdir -p "$R" && ln -s "$VB_TEST_WINE" "$R/wine"

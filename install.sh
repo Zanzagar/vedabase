@@ -81,19 +81,27 @@ vb_init_paths
   vb_die "$VB_HOME/app exists and is not VedaBase's; choose another --home"
 mkdir -p "$VB_LOGS" "$VB_CONFIG_DIR"
 printf '%s\n' "$VB_HOME" >"$VB_CONFIG_DIR/home"
+# Removes a folder this script made, even one a backup left unwritable.
+force_remove() { chmod -R u+w -- "$1" 2>/dev/null; rm -rf -- "$1" 2>/dev/null; }
 in_wizard=0 # set while the hidden display and the wizard run
-on_exit() {
+on_exit() { # each step on its own: one that fails must not stop the next
   local rc=$?
   ((rc == 0)) && return
   if ((in_wizard)); then # leave nothing running in the background
     wineserver -k >/dev/null 2>&1 || true
-    vb_display_stop install || true
+    vb_display_stop install >/dev/null 2>&1 || true
   fi
-  if [[ -n ${stage:-} && -d $stage ]]; then rm -rf -- "$stage"; fi
-  # A restore cut short puts the prefix it was replacing back.
-  if [[ -n ${old_prefix:-} && -d $old_prefix ]] && ! vb_installed; then
-    { rm -rf -- "$VB_PREFIX" && mv -T -- "$old_prefix" "$VB_PREFIX"; } || true
+  # A restore cut short puts back the prefix it was replacing, by renaming
+  # only; deleting comes after, and may fail without harm.
+  if [[ -n ${old_prefix:-} && -d $old_prefix ]]; then
+    if [[ -e $VB_PREFIX ]]; then mv -T -- "$VB_PREFIX" "$VB_PREFIX.rejected-$$" 2>/dev/null || true; fi
+    if mv -T -- "$old_prefix" "$VB_PREFIX" 2>/dev/null; then
+      force_remove "$VB_PREFIX.rejected-$$" || true
+    else
+      vb_warn "your previous prefix is in $old_prefix; move it back to $VB_PREFIX" || true
+    fi
   fi
+  if [[ -n ${stage:-} && -d $stage ]]; then force_remove "$stage" || true; fi
   vb_warn "install.sh did not finish; logs are in ${VB_LOGS:-}. Running it again continues where it stopped."
 }
 trap on_exit EXIT
@@ -133,22 +141,31 @@ if ((reinstall)) && [[ -d $VB_PREFIX ]]; then
     vb_die "$VB_PREFIX is not a Wine prefix, so it is not deleted; move it away and run again"
 fi
 
+# A prefix fit to restore: the program, the whole infobase, its shadow file
+# and Wine's registry. A stamp alone proves nothing about a backup.
+prefix_complete() { # DIR
+  local app=$1/$VB_APP_REL
+  [[ -f $1/system.reg && -f $1/user.reg && -f $app/Views.exe &&
+    -f "$app/Nfo/Bhaktivedanta Vedabase 2003.sdw" && -f "$app/Nfo/$VB_MASTER_NFO" &&
+    $(vb_size "$app/Nfo/$VB_MASTER_NFO") == "$VB_MASTER_SIZE" ]]
+}
+
 stage='' old_prefix=''
 if [[ -n $restore ]]; then
   [[ ! -e $VB_PREFIX ]] || ((reinstall)) || vb_die "$VB_PREFIX already exists; add --reinstall to replace it"
   # Unpacked aside and only its prefix/ kept: a backup must not be able to
-  # replace Wine, the helper tools or these scripts. This comes before anything
-  # is replaced, so a wrong or damaged file costs nothing.
+  # replace Wine, the helper tools or these scripts. It is checked before
+  # anything is replaced, so a wrong or damaged file costs nothing.
   vb_say "Unpacking $restore"
   stage=$(mktemp -d "$VB_HOME/restore.XXXXXX")
-  if ! tar -C "$stage" -xzf "$restore" || [[ ! -d $stage/prefix || -L $stage/prefix ]]; then
-    vb_die "$restore is not a backup made by 'vedabase backup'; nothing was changed"
+  if ! tar -C "$stage" -xzf "$restore" || [[ ! -d $stage/prefix || -L $stage/prefix ]] || ! prefix_complete "$stage/prefix"; then
+    vb_die "$restore is not a complete backup made by 'vedabase backup'; nothing was changed"
   fi
 fi
 
 if ((reinstall)) && [[ -d $VB_PREFIX ]]; then
   vb_wine_stop
-  if [[ -n $restore ]]; then # kept until the restored prefix is known to work
+  if [[ -n $restore ]]; then # renamed, so that it comes back if the swap is cut short
     old_prefix=$VB_PREFIX.before-restore-$(date +%Y%m%d-%H%M%S)
     mv -T -- "$VB_PREFIX" "$old_prefix"
   else
@@ -160,14 +177,12 @@ fi
 if [[ -n $restore ]]; then
   vb_say "Restoring the prefix from $restore"
   mv -T -- "$stage/prefix" "$VB_PREFIX"
-  rm -rf -- "$stage"
+  replaced=$old_prefix old_prefix='' # restored: nothing to roll back from here
+  force_remove "$stage" || vb_warn "could not remove $stage; delete it by hand"
   stage=''
-  if ! vb_installed; then # the exit trap puts back any prefix it replaced
-    rm -rf -- "$VB_PREFIX"
-    vb_die "$restore does not hold a finished install; nothing was changed"
+  if [[ -n $replaced ]]; then
+    force_remove "$replaced" || vb_warn "could not remove the replaced prefix $replaced; delete it by hand"
   fi
-  if [[ -n $old_prefix ]]; then rm -rf -- "$old_prefix"; fi
-  old_prefix=''
 fi
 
 if ! vb_installed; then

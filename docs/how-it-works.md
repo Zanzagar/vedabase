@@ -79,7 +79,7 @@ clicks, so a ticked box is never unticked.
 The click offsets are relative to the 450×333 wizard window. They hold on any
 display, because Wine lays dialogs out at its own 96 DPI.
 
-Two problems came up under Wine:
+Three problems came up under Wine:
 
 - **The intro sound.** The first thing the wizard does is "run"
   `C:\Spec\intro.wav`. Wine has nothing registered for `.wav`, so it shows an
@@ -87,6 +87,13 @@ Two problems came up under Wine:
   `vb_make_prefix` registers `.wav` to `rundll32.exe` with no arguments, which
   does nothing. `vb_postinstall` deletes the key again; a fresh prefix has no
   `.wav` key at all.
+- **The free-space check.** Before it starts the wizard, the launcher checks
+  for 2 MB free on its TEMP drive, but in 32-bit arithmetic, so it refuses
+  ("You must have at least 2MB of free space on your TEMP drive!") whenever
+  the free space sits just above a multiple of 4 GiB, even on a disk with
+  terabytes free. Where the free space is that close, the installers write a
+  128 MiB filler file of random bytes until the wizard is up. Seen under Wine
+  on a disk with 10 TiB free; the Windows installer does the same to be safe.
 - **The restart.** The wizard ends by asking for a reboot. The installer
   answers "later", then does Wine's equivalent itself: `wineserver -k`, then
   `wineboot --restart`.

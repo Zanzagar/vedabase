@@ -8,6 +8,7 @@ set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/interrupt H=$B/home VH=$B/vb
 rm -rf -- "$B"; mkdir -p "$H"; chmod 700 "$B"
+isolate "$H"
 mapfile -t src < <(source_args)
 cd "$REPO" || exit 1
 

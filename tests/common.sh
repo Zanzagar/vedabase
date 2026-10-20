@@ -14,6 +14,19 @@ _vb_home=$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/vedabase/home" 2>/dev/null) ||
 VB_TEST_TOOLS=${VB_TEST_TOOLS:-$_vb_home/tools/root}
 VB_TEST_WINE=${VB_TEST_WINE:-$_vb_home/wine/wine-11.0-amd64-wow64}
 
+# Your own install's settings, as they are now: every test must leave them so.
+_vb_cfg=${XDG_CONFIG_HOME:-$HOME/.config}/vedabase/home
+_vb_apps=${XDG_DATA_HOME:-$HOME/.local/share}/applications
+_vb_user_state() { cat -- "$_vb_cfg" "$_vb_apps/vedabase.desktop" "$_vb_apps/vanibase.desktop" 2>/dev/null | cksum; }
+_vb_user_before=$(_vb_user_state)
+
+# Point every per-user location of the installers at H (the test's scratch
+# HOME), so nothing reaches yours even where XDG_* are set.
+isolate() { # H
+  export XDG_CONFIG_HOME=$1/.config XDG_DATA_HOME=$1/.local/share
+  unset VEDABASE_HOME VEDABASE_SOURCE VEDABASE_INSTALL_DISPLAY
+}
+
 fails=0
 pass() { printf 'PASS  %s\n' "$*"; }
 fail() { printf 'FAIL  %s\n' "$*"; fails=$((fails + 1)); }
@@ -21,6 +34,7 @@ check() { # DESCRIPTION COMMAND...
   if "${@:2}"; then pass "$1"; else fail "$1"; fi
 }
 finish() {
+  check "your own VedaBase settings and menu entries are unchanged" test "$(_vb_user_state)" = "$_vb_user_before"
   if ((fails)); then printf '\n%s check(s) failed\n' "$fails"; exit 1; fi
   printf '\nall checks passed\n'
 }
