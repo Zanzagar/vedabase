@@ -73,6 +73,9 @@ matters, with the static checks before every commit:
   refuses a drive root (`C:\`), which stopped every Windows install before its
   first download until a real run on Atman found it (9eefebf). A parse proves
   syntax only; Windows behaviour needs a Windows run.
+- Never set Windows XP compatibility mode on `Views.exe`: on Windows 11 it makes
+  every start demand administrator rights, and removing it takes a flush of the
+  compatibility cache too (`Remove-OldCompatMode`).
 
 ## Multi-agent runs
 

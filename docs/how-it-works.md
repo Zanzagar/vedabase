@@ -206,10 +206,13 @@ account. The phases pass a random token, so a run is never fooled by an old
    `C:\Program Files\VedaBase-Setup`, where only administrators can create
    anything, so no other account can plant files it would trust.
    - *Download:* to the root of `C:\`, checked against the same manifest.
-   - *Compatibility:* Windows XP SP2 mode on `Views.exe`, set with
-     `reg.exe`, which leaves other programs' entries alone. Devotees used
-     this against Folio hanging on exit under Windows 7; a 2015 report says it
-     didn't help on Windows 10. `-NoCompatMode` removes it again.
+   - *No compatibility mode:* Windows XP mode, which devotees used against
+     Folio hanging on exit under Windows 7, makes Windows 11 refuse to start
+     `Views.exe` without administrator rights (error 740), so every launch
+     asked for them; Folio closed normally without it on the test PC. If an
+     earlier version of the installer set it, the installer deletes it and
+     calls `BaseFlushAppcompatCache`, because Windows' compatibility cache
+     otherwise goes on applying it.
    - *Wizard:* the original `Install.exe`, which the user clicks through. Any
      existing `.sdw` notes are copied aside first and put back afterwards,
      also when a restart cut that run short: the list of files to put back
@@ -289,9 +292,18 @@ Checked in October 2026 on Ubuntu 24.04 with Wine 11.0:
   stubbed, Linux Wine stood in for the Mac build, and a helper clicked the
   wizard. The app it built opened VedaBase 25 with correct diacritics.
 
-**Not yet verified:** any run on real Windows or a real Mac, the hang on exit
-under Windows 10/11, WineHQ bug 60494 on Apple Silicon, and whether Windows
-itself needs the `VedaBase_25.nfo` link.
+Checked in October 2026 on one Windows 11 Home 25H2 PC (x64), with the README's
+steps but *Complete* chosen in the wizard: the downloads, the wizard, VedaBase
+and VaniBase opening, the diacritics at Bg 2.13, search, a note kept across
+restarts, no hang on exit, the fonts, the swap folders, Active Setup and the
+clean-up of `C:\`, and a second run that changes nothing. Found there and
+fixed: Windows PowerShell 5.1 refused to create a folder at `C:\`; Windows XP
+mode made every start ask for administrator rights; a stale recent-file entry.
+
+**Not yet verified:** a real Mac; *Custom* on Windows (after an uninstall it
+left VedaBase's pages blank, cause unknown); a second account, a standard user
+and an accepted restart on Windows; WineHQ bug 60494 on Apple Silicon; and
+whether Windows itself needs the `VedaBase_25.nfo` link.
 
 ## The license you accept
 

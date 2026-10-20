@@ -56,8 +56,18 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
   command line unit-tested there. ~~Never run on Windows.~~ **► First real run
   2026-10-20 on Atman (Windows 11 Home 25H2, Windows PowerShell 5.1.26100), by the
   Atman session: the elevated phase stopped before any download, because 5.1's
-  `New-Item -Force` refuses `C:\`; fixed in 9eefebf, re-run pending.** Atman, Corey's
-  Windows PC, can test it with `docs/testing.md`.
+  `New-Item -Force` refuses `C:\`; fixed in 9eefebf, ~~re-run pending~~.** **► Second
+  run (41bc3f3): every `docs/testing.md` check passed, with *Complete* chosen in the
+  wizard (it is pre-selected). Found and fixed: Windows XP compatibility mode made every
+  start of Views.exe demand administrator rights (error 740), and Folio closed normally
+  without it, so the installer no longer sets it, removes an earlier version's setting
+  and flushes the compatibility cache; the wizard steps (a media player or "Pick an app"
+  opens for INTRO.WAV, no Fonts window, restart prompts Cancel then OK, a pre-filled
+  name); a stale recent-file entry Install.exe writes. OPEN: after uninstalling,
+  a *Custom* reinstall (63c0764) showed blank panes; the cause (Custom, or the uninstall)
+  is unknown. The tester's report and evidence are on Atman in
+  `/home/corey/projects/vedabase-testing/evidence/`. Not run there: a second account, a
+  standard user, an accepted restart, a note saved without elevation, SmartScreen.**
 - **Found this session, worth knowing:** Install.exe's launcher checks free space in
   32-bit arithmetic and refuses when the free space sits just above a multiple of
   4 GiB (the installers now write a 128 MiB filler first; `docs/how-it-works.md`).
@@ -77,9 +87,10 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 
 ## Open, in order
 
-1. One real run each on Windows (Atman) and on a Mac, following `docs/testing.md`. The
-   Windows run went to the Atman session `atman-linked-torvalds` on 2026-10-20; the Mac
-   run needs a field tester (Corey suggests Anandini Lalita, through Tāraka).
+1. ~~One real run each on Windows (Atman) and on a Mac~~ **Windows: settle the blank
+   panes** (State) before the README's "choose Custom" is trusted; then the checks the
+   Atman runs skipped. **Mac:** a field tester (Corey suggests Anandini Lalita, through
+   Tāraka), following `docs/testing.md`.
    Everything Windows-specific (the elevated phase, Active Setup, the notes restore, the
   free-space filler) has only been read and parsed, never run.
 2. ~~**Corey decides how to share it.** The repository is private, so the README's

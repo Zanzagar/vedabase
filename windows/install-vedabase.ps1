@@ -29,17 +29,13 @@
 
 .PARAMETER NoVaniBase
   Leave out VaniBase 25 (393 MB).
-
-.PARAMETER NoCompatMode
-  Do not set Windows XP SP2 compatibility mode on Views.exe.
 #>
 [CmdletBinding()]
 param(
   [ValidateSet('User', 'Machine')]
   [string]$Phase = 'User',
   [string]$RunToken = '',
-  [switch]$NoVaniBase,
-  [switch]$NoCompatMode
+  [switch]$NoVaniBase
 )
 
 Set-StrictMode -Version 2
@@ -68,9 +64,14 @@ $ActiveSetup = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{8C9E
 
 function Say([string]$Message) { Write-Host "==> $Message" -ForegroundColor Cyan }
 function Warn([string]$Message) { Write-Host "warning: $Message" -ForegroundColor Yellow }
+# The log ends before any prompt: Windows PowerShell 5.1 otherwise closes it
+# with a stray "TerminatingError(): System error" line.
+function Stop-Log { try { Stop-Transcript | Out-Null } catch { } }
+
 function Fail([string]$Message) {
   Write-Host "error: $Message" -ForegroundColor Red
   Write-Host ''
+  Stop-Log
   Read-Host 'Press Enter to close this window' | Out-Null
   exit 2  # tells Install-VedaBase-Windows.cmd the error was shown and Enter pressed
 }
@@ -122,7 +123,6 @@ function Invoke-UserPhase {
   $token = [guid]::NewGuid().ToString()
   $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Phase Machine -RunToken $token"
   if ($NoVaniBase) { $argLine += ' -NoVaniBase' }
-  if ($NoCompatMode) { $argLine += ' -NoCompatMode' }
   try {
     $proc = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
       -Verb RunAs -ArgumentList $argLine -PassThru
@@ -480,6 +480,28 @@ function Invoke-Wizard {
   }
 }
 
+# No compatibility mode. Windows XP mode, which devotees used against Folio's
+# hang on exit under Windows 7, makes Windows 11 ask for administrator rights
+# at every start of Views.exe (seen on Atman, where Folio also closed normally
+# without it). An earlier version of this installer set it: remove that, then
+# flush Windows' cache of compatibility settings, which would go on applying it.
+function Remove-OldCompatMode {
+  $key = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers'
+  $exe = Join-Path $AppDir 'Views.exe'
+  $values = Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue
+  if (-not ($values -and $values.PSObject.Properties[$exe] -and
+      [string]$values.PSObject.Properties[$exe].Value -like '*WINXPSP2*')) { return }
+  $null = Invoke-Tool 'reg.exe' @('delete', 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers',
+    '/v', $exe, '/f', '/reg:64')
+  try {
+    Add-Type -Namespace VedaBaseSetup -Name AppCompat -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern bool BaseFlushAppcompatCache();'
+    [void][VedaBaseSetup.AppCompat]::BaseFlushAppcompatCache()
+  } catch {
+    Warn 'If VedaBase still asks for administrator rights when it starts, restart Windows once.'
+  }
+  Say 'Removed Windows XP compatibility mode from Views.exe'
+}
+
 function Invoke-MachinePhase {
   Write-Host 'VedaBase setup (administrator)' -ForegroundColor White
   New-Item -ItemType Directory -Force -Path $Cache | Out-Null
@@ -513,17 +535,7 @@ function Invoke-MachinePhase {
     if (-not (Test-Intact $target $row[2] $row[3])) { Get-DriveFile $row $target }
   }
 
-  # Folio Views 4.3 is an XP-era program; XP SP2 compatibility is what devotees
-  # used against its hang on exit under Windows 7. reg.exe changes this one
-  # value without touching the other programs' settings in the key.
-  $layers = 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers'
-  if ($NoCompatMode) {
-    # Undo an earlier run's setting (reg.exe exits 1 when there is none).
-    $null = Invoke-Tool 'reg.exe' @('delete', $layers, '/v', "$AppDir\Views.exe", '/f', '/reg:64')
-  } else {
-    $code = Invoke-Tool 'reg.exe' @('add', $layers, '/v', "$AppDir\Views.exe", '/t', 'REG_SZ', '/d', '~ WINXPSP2', '/f', '/reg:64')
-    if ($code -ne 0) { Warn 'Could not set compatibility mode on Views.exe' }
-  }
+  Remove-OldCompatMode
 
   if (-not $installed) { Invoke-Wizard }
 
@@ -556,6 +568,7 @@ function Invoke-FinishPhase {
   Write-Host '  Open "Bhaktivedanta VedaBase 2003" (VedaBase 25) or "VaniBase 25" from the desktop or the Start menu.'
   Write-Host '  If VedaBase ever freezes when closing (a known problem of this 2003 program on newer'
   Write-Host '  Windows), end it from Task Manager (Ctrl+Shift+Esc).'
+  Stop-Log
   $answer = Read-Host 'Open VedaBase now? [Y/n]'
   if ($answer -notmatch '^[nN]') {
     Start-Process -FilePath (Join-Path $AppDir 'Views.exe') -WorkingDirectory $AppDir `
@@ -570,6 +583,7 @@ if ($Phase -eq 'Machine') {
   } catch {
     Fail $_.Exception.Message
   }
+  Stop-Log
   exit 0
 }
 try { Start-Transcript -LiteralPath (Join-Path $env:TEMP 'VedaBase-install.log') -Append | Out-Null } catch { }

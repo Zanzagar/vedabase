@@ -27,13 +27,13 @@ undone ([details](#what-the-installers-add)):
 
 | Your computer | What to run | Status |
 | --- | --- | --- |
-| Windows 10 or 11 | double-click `Install-VedaBase-Windows.cmd` | **not yet tried on a real Windows PC** |
+| Windows 10 or 11 | double-click `Install-VedaBase-Windows.cmd` | tried on one Windows 11 PC; one open question (see [What's next](#whats-next)) |
 | Linux (Ubuntu, Debian; also WSL) | `./install.sh` in a terminal | tested end to end on Ubuntu 24.04 |
 | macOS (Intel or Apple Silicon) | double-click `Install-VedaBase-Mac.command` | **not yet tried on a real Mac** |
 
-The Windows and macOS installers have been checked as far as possible without
-those systems, but not yet run on them. If you are among the first to try one,
-please tell whoever gave you this installer how it went;
+The Windows installer has run on one Windows 11 PC so far, and the macOS
+installer has only been checked as far as possible without a Mac. If you are
+among the first to try one, please tell whoever gave you this installer how it went;
 [docs/testing.md](docs/testing.md) lists what to look at, and
 [What's next](#whats-next) what is planned.
 
@@ -62,7 +62,8 @@ whether a PC is in S mode. Switching out of it is free but cannot be undone.
    write to `C:\` and the Fonts folder. Click **Yes**. A second window opens
    and downloads the files.
 3. The original VedaBase installer then opens. A media player may open first
-   to play a short welcome sound; close it, and the installer is behind it.
+   to play a short welcome sound (or Windows asks which app should play it);
+   close it, and the installer is behind it.
    Click through the installer:
    - **Next** → **Accept** → type your name (replace whatever it shows) →
      **Next**.
@@ -89,15 +90,14 @@ Notes:
 
 - **Freeze on exit.** If VedaBase freezes when you close it, end it from
   Task Manager (Ctrl+Shift+Esc). This is a known problem with this 2003
-  program on newer Windows. The installer sets Windows XP compatibility mode
-  on `Views.exe`, which devotees used against it on Windows 7, though one
-  report says it did not help on Windows 10. To turn the mode off, run the
-  installer again with `-NoCompatMode` (see *Options*).
-- **Options.** To leave out VaniBase, or to skip or undo compatibility mode,
-  open the unzipped folder, click the address bar, type `cmd` and press
-  Enter. In the window that opens, type
-  `.\Install-VedaBase-Windows.cmd -NoVaniBase` or
-  `.\Install-VedaBase-Windows.cmd -NoCompatMode` and press Enter.
+  program on newer Windows, though it did not happen on the Windows 11 PC it
+  was tested on. Do not turn on Windows XP compatibility mode against it, as
+  devotees did on Windows 7: on Windows 11 it makes VedaBase ask for
+  administrator rights every time it starts. (The installer removes it if an
+  earlier version of the installer set it.)
+- **Leaving out VaniBase.** Open the unzipped folder, click the address bar,
+  type `cmd` and press Enter. In the window that opens, type
+  `.\Install-VedaBase-Windows.cmd -NoVaniBase` and press Enter.
 - **Smart App Control.** If Windows blocks the 2003 programs, Smart App
   Control is the likely cause (*Windows Security → App & browser control*).
   Turning it off lets VedaBase run. On Windows 11 with the updates since March
@@ -322,8 +322,12 @@ run on a new system.
 
 The installers get better as reports come in:
 
-- **The first runs on Windows and macOS.** What a real PC and a real Mac show
+- **The first run on a Mac**, and runs on more Windows PCs. What they show
   will correct these steps wherever they differ.
+- **One open question on Windows.** On the test PC, uninstalling VedaBase and
+  installing it again with *Custom* left its pages blank, although a first
+  install with *Complete* worked. Which of the two caused it is being
+  checked; until then, avoid uninstalling and reinstalling to test it.
 - **What Windows updates broke.** Some Folio features have stopped working on
   newer Windows. Once it is known which, the installers can add workarounds,
   as they already try to for the freeze on exit.

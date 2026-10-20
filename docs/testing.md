@@ -41,8 +41,9 @@ that once with this list before relying on either.
   - `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts` has entries
     such as `Sanskrit Times (TrueType)` and `Balaram (TrueType)`.
   - `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers`
-    has `C:\Bhaktivedanta VedaBase 2003\Views.exe` = `~ WINXPSP2`. Other
-    programs' entries in that key are still there.
+    has no entry for `C:\Bhaktivedanta VedaBase 2003\Views.exe` (no
+    compatibility mode), and VedaBase opens from its icon without a UAC
+    prompt.
   - `HKLM\SOFTWARE\WOW6432Node\VedaBase\4\Server\SwapPath` points to
     `C:\Bhaktivedanta VedaBase 2003\Temp`.
   - `HKLM\SOFTWARE\Microsoft\Active Setup\Installed Components\{8C9EE47A-5102-4B2C-B476-0212DFBB3EC0}`
@@ -61,9 +62,9 @@ that once with this list before relying on either.
     "Updating Index...".
 - Accept the installer's restart prompt once, on purpose, then run the `.cmd`
   again. It should finish cleanly.
-- To compare without compatibility mode, run
-  `.\Install-VedaBase-Windows.cmd -NoCompatMode` (it removes the setting),
-  check that the `Layers` entry is gone, and repeat check 6.
+- Note whether a media player, or Windows asking which app to use, opened at
+  the start (the installer plays `C:\Spec\INTRO.WAV`), and record the restart
+  messages word for word.
 
 ## macOS only
 

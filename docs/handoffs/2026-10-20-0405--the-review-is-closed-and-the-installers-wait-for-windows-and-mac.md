@@ -32,11 +32,12 @@ session; its result is not in this brief. State: `HANDOFF.md`.
 
 ## Highest-value work
 
-1. **A real Windows run** (Atman), with `docs/testing.md`; in progress in the Atman
-   session when this brief was written: read its report, or ask Corey for it. The whole Windows path (the
-   elevated phase, Active Setup, the notes kept across a restart, the free-space filler,
-   `-NoCompatMode`) has only been parsed, and two functions unit-tested, on Linux. It is
-   the platform most devotees will use.
+1. **Windows: the open question.** The Atman session's runs (HANDOFF.md, State) passed
+   every `docs/testing.md` check with *Complete*, and found three bugs, all fixed. After
+   an uninstall, a *Custom* reinstall left VedaBase's panes blank. Settle whether
+   *Custom* or the uninstall causes it (reinstall with *Complete* after an uninstall;
+   compare the program folder with journel's, a working *Custom* install) before the
+   README's "choose Custom" is trusted. It is the platform most devotees will use.
 2. **A real Mac run**, Apple Silicon if possible (Corey suggests Anandini Lalita, who
    has a new MacBook, through Tāraka): Gatekeeper, Rosetta, the Fonts-window
    wait (which depends on `wine tasklist` behaving as it does on Linux), bug 60494.
