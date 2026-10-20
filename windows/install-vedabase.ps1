@@ -14,19 +14,18 @@
     Machine  (administrator)  downloads, Install.exe, and the fixes below
     Finish   (you)            your Folio settings, your desktop icon
 
-  The fixes the README leaves out:
-    - The shadow file the VedaBase icon opens looks for "VedaBase_25.nfo", a
-      name the README's rename removed; a hard link restores it.
-    - VaniBase 25 is added, with its own icons.
-    - All 51 fonts are registered with Windows. Install.exe only copies them,
-      which is why the README says to drag them onto Fonts if the diacritics
-      fail.
-    - Folio's per-user settings (fonts, toolbars) are restored if they landed in
-      another account, as happens when you elevate with a different
-      administrator or under Administrator protection; without them the
-      contents pane shows broken diacritics.
+  What it adds to the README's steps:
+    - The shadow file the VedaBase icon opens names its master infobase
+      "VedaBase_25.nfo", while the installed infobase is called
+      "Bhaktivedanta Vedabase 2003.nfo"; a hard link gives it both names.
+    - VaniBase 25, with its own icons.
+    - All 51 fonts registered with Windows (Install.exe only copies them).
+    - Folio's per-user settings, without which its contents pane shows broken
+      diacritics, for every account on the PC (Active Setup), and Folio's
+      swap and index folders pointed at a folder every account can write.
 
-  Running it again is safe: it finishes whatever is missing.
+  Running it again is safe: it finishes whatever is missing. Logs:
+  %TEMP%\VedaBase-install.log and C:\Program Files\VedaBase-Setup\install.log.
 
 .PARAMETER NoVaniBase
   Leave out VaniBase 25 (393 MB).
@@ -38,6 +37,7 @@
 param(
   [ValidateSet('User', 'Machine')]
   [string]$Phase = 'User',
+  [string]$RunToken = '',
   [switch]$NoVaniBase,
   [switch]$NoCompatMode
 )
@@ -52,11 +52,16 @@ $FontList = Join-Path $Root 'manifest\fonts.tsv'
 $UserDefaults = Join-Path $PSScriptRoot 'vedabase-defaults.reg'
 $AppDir = 'C:\Bhaktivedanta VedaBase 2003'
 $NfoDir = Join-Path $AppDir 'Nfo'
-$Cache = Join-Path $env:ProgramData 'VedaBase-Setup'
+$Master = Join-Path $NfoDir 'Bhaktivedanta Vedabase 2003.nfo'
+$MasterSize = 649011200
+# Under Program Files, where only administrators can create folders, so no
+# other account can plant files the elevated phase would trust.
+$Cache = Join-Path $env:ProgramFiles 'VedaBase-Setup'
 $StagedList = Join-Path $Cache 'staged-in-C-root.txt'
-$MachineOk = Join-Path $Cache 'machine-phase.ok'
+$MachineDone = Join-Path $Cache 'machine-phase.done'
+$StageItems = @('C:\Install.exe', 'C:\Fonts', 'C:\Nfo', 'C:\Spec')
 $DriveUrl = 'https://drive.usercontent.google.com/download?export=download&confirm=t&id='
-$VedaNfoSize = 649011200
+$ActiveSetup = 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{8C9EE47A-5102-4B2C-B476-0212DFBB3EC0}'
 
 function Say([string]$Message) { Write-Host "==> $Message" -ForegroundColor Cyan }
 function Warn([string]$Message) { Write-Host "warning: $Message" -ForegroundColor Yellow }
@@ -67,8 +72,8 @@ function Fail([string]$Message) {
   exit 1
 }
 
-# reg.exe reports even success on stderr, which Windows PowerShell turns into a
-# terminating error when $ErrorActionPreference is Stop; run it with that relaxed.
+# reg.exe reports even success on stderr, which Windows PowerShell
+# turns into a terminating error when $ErrorActionPreference is Stop.
 function Invoke-Tool([string]$Exe, [string[]]$Arguments) {
   $saved = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
@@ -82,12 +87,17 @@ function Read-Table([string]$Path) {
   }
 }
 
+function Test-Installed {
+  (Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe')) -and
+  (Test-Path -LiteralPath $Master) -and ((Get-Item -LiteralPath $Master).Length -eq $MasterSize)
+}
+
 # ======================================================================== User phase
 function Invoke-UserPhase {
   Write-Host 'Bhaktivedanta VedaBase 25 for Windows' -ForegroundColor White
-  foreach ($f in $Manifest, $FontList) {
+  foreach ($f in $Manifest, $FontList, $UserDefaults) {
     if (-not (Test-Path -LiteralPath $f)) {
-      Fail "Cannot find $f. Extract the whole ZIP (right-click it, Extract All) and run the installer from there."
+      Fail "Cannot find $f. Extract the whole ZIP (right-click it, Extract All) and run the installer from the extracted folder."
     }
   }
   # Files unzipped from a download carry the Mark of the Web; clear it so
@@ -95,35 +105,39 @@ function Invoke-UserPhase {
   Get-ChildItem -LiteralPath $Root -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
   if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
     Fail ('Windows is restricting PowerShell here (Smart App Control or another App Control policy). ' +
-      'That policy would also block the 2003 VedaBase programs. Turn off Smart App Control in ' +
-      'Windows Security > App & browser control > Smart App Control settings, then run this again.')
+      'That policy would also block the 2003 VedaBase programs. See "Smart App Control" in README.md.')
   }
   $sac = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction SilentlyContinue
   if ($sac -and $sac.PSObject.Properties['VerifiedAndReputablePolicyState'] -and $sac.VerifiedAndReputablePolicyState -eq 1) {
-    Warn ('Smart App Control is on. Windows may block the 2003 VedaBase programs; if it does, turn it off in ' +
-      'Windows Security > App & browser control > Smart App Control settings and run this again.')
+    Warn ('Smart App Control is on, so Windows may block the 2003 VedaBase programs. ' +
+      'See "Smart App Control" in README.md before turning it off: on many PCs it cannot be turned back on.')
   }
   $free = (Get-PSDrive -Name C).Free
   if ($free -lt 3GB) { Fail ('Drive C: needs at least 3 GB free (it has {0:N1} GB).' -f ($free / 1GB)) }
 
   Say 'Windows will now ask for administrator rights (the installer writes to C:\ and the Fonts folder).'
-  Remove-Item -LiteralPath $MachineOk -Force -ErrorAction SilentlyContinue
-  $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Phase Machine"
+  $token = [guid]::NewGuid().ToString()
+  $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Phase Machine -RunToken $token"
   if ($NoVaniBase) { $argLine += ' -NoVaniBase' }
   if ($NoCompatMode) { $argLine += ' -NoCompatMode' }
   try {
-    Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
-      -Verb RunAs -ArgumentList $argLine -Wait
+    $proc = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+      -Verb RunAs -ArgumentList $argLine -PassThru
   } catch {
     Fail 'Administrator permission was not given, so nothing was installed.'
   }
-  if (-not (Test-Path -LiteralPath $MachineOk)) {
-    Fail 'The administrator window did not finish. Run this installer again to continue where it stopped.'
+  # Wait for that one process only (Start-Process -Wait would also wait for
+  # anything the installer leaves running, such as a media player).
+  $proc.WaitForExit()
+  $done = (Test-Path -LiteralPath $MachineDone) -and ((Get-Content -LiteralPath $MachineDone -Raw).Trim() -eq $token)
+  if (-not $done) {
+    Fail "The administrator window did not finish. Its log is $Cache\install.log; run this installer again to continue."
   }
   Invoke-FinishPhase
 }
 
 # ======================================================================== Machine phase
+
 function Test-Intact([string]$Path, $Size, [string]$Sha) {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
   if ((Get-Item -LiteralPath $Path).Length -ne [int64]$Size) { return $false }
@@ -131,13 +145,15 @@ function Test-Intact([string]$Path, $Size, [string]$Sha) {
 }
 
 # Install.exe, Fonts\, Nfo\ and Spec\ must sit at the root of C:\ (the README);
-# VaniBase and the documents go to the cache folder.
+# VaniBase goes to the cache folder. The documents in the Drive folders are not
+# needed (returns $null).
 function Get-Target([string]$Rel) {
   $win = $Rel -replace '/', '\'
   if ($Rel -eq 'Install.exe' -or $Rel -like 'Fonts/*' -or $Rel -like 'Nfo/*' -or $Rel -like 'Spec/*') {
     return "C:\$win"
   }
-  return "$Cache\$win"
+  if ($Rel -like 'VaniBase/*') { return "$Cache\$win" }
+  return $null
 }
 
 # Windows' curl checks certificate revocation through Schannel, which fails on
@@ -182,7 +198,8 @@ function Get-DriveFile($Row, [string]$Path) {
     Remove-Item -LiteralPath $Path, "$Path.part" -Force -ErrorAction SilentlyContinue
     if ($try -lt 3) { Warn "$rel did not arrive intact, retrying"; Start-Sleep -Seconds (10 * $try) }
   }
-  throw "$rel did not download intact. Google Drive may be limiting downloads of this file; try again later. If the links changed, see README.md."
+  throw ("$rel did not download intact. Usually Google Drive is limiting downloads for a while: " +
+    'wait a few hours and run the installer again. Check the internet connection and free disk space too.')
 }
 
 function New-Shortcut([string]$Path, [string]$Arguments) {
@@ -207,7 +224,10 @@ function Register-Fonts {
   $key = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts'
   $known = @{}
   foreach ($p in (Get-ItemProperty -LiteralPath $key).PSObject.Properties) {
-    if ($p.Value -is [string]) { $known[(Split-Path -Leaf $p.Value).ToLowerInvariant()] = $true }
+    if ($p.Value -is [string] -and $p.Value) {
+      $v = $p.Value
+      $known[$v.Substring($v.LastIndexOf('\') + 1).ToLowerInvariant()] = $true
+    }
   }
   $added = @()
   foreach ($row in Read-Table $FontList) {
@@ -235,24 +255,31 @@ function Register-Fonts {
 
 function Complete-Install([switch]$SkipFonts) {
   # The shadow file the VedaBase icon opens names its master "VedaBase_25.nfo".
-  $master = Join-Path $NfoDir 'Bhaktivedanta Vedabase 2003.nfo'
+  # Re-link if an old alias survived an uninstall and no longer matches.
   $alias = Join-Path $NfoDir 'VedaBase_25.nfo'
+  if (Test-Path -LiteralPath $alias) {
+    $a = Get-Item -LiteralPath $alias
+    $m = Get-Item -LiteralPath $Master
+    if ($a.Length -ne $m.Length -or $a.LastWriteTimeUtc -ne $m.LastWriteTimeUtc) { Remove-Item -LiteralPath $alias -Force }
+  }
   if (-not (Test-Path -LiteralPath $alias)) {
     Say 'Linking VedaBase_25.nfo to the installed infobase'
-    try { New-Item -ItemType HardLink -Path $alias -Target $master | Out-Null }
-    catch { Copy-Item -LiteralPath $master -Destination $alias }
+    try { New-Item -ItemType HardLink -Path $alias -Target $Master | Out-Null }
+    catch { Copy-Item -LiteralPath $Master -Destination $alias }
   }
 
   if (-not $NoVaniBase) {
     $src = Join-Path $Cache 'VaniBase'
     $nfo = Join-Path $NfoDir 'VaniBase_25.nfo'
     $sdw = Join-Path $NfoDir 'VaniBase_25.sdw'
-    if (-not (Test-Path -LiteralPath $nfo) -or (Get-Item -LiteralPath $nfo).Length -ne (Get-Item -LiteralPath "$src\VaniBase_25.nfo").Length) {
-      Say 'Adding VaniBase 25'
-      Copy-Item -LiteralPath "$src\VaniBase_25.nfo" -Destination $nfo -Force
+    if (Test-Path -LiteralPath "$src\VaniBase_25.nfo") {
+      if (-not (Test-Path -LiteralPath $nfo) -or (Get-Item -LiteralPath $nfo).Length -ne (Get-Item -LiteralPath "$src\VaniBase_25.nfo").Length) {
+        Say 'Adding VaniBase 25'
+        Copy-Item -LiteralPath "$src\VaniBase_25.nfo" -Destination $nfo -Force
+      }
+      # Copied once only: your notes and highlights live in the shadow file.
+      if (-not (Test-Path -LiteralPath $sdw)) { Copy-Item -LiteralPath "$src\VaniBase_25.sdw" -Destination $sdw }
     }
-    # Copied once only: your notes and highlights live in the shadow file.
-    if (-not (Test-Path -LiteralPath $sdw)) { Copy-Item -LiteralPath "$src\VaniBase_25.sdw" -Destination $sdw }
     $arguments = "`"$sdw`""
     New-Shortcut "$env:PUBLIC\Desktop\VaniBase 25.lnk" $arguments
     $menu = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Bhaktivedanta VedaBase 2003"
@@ -264,44 +291,162 @@ function Complete-Install([switch]$SkipFonts) {
   if (-not $SkipFonts) { Register-Fonts }
 }
 
+# Install.exe records the installing account's TEMP folder as Folio's swap and
+# index folders. Another account cannot write there, so point both at a folder
+# inside the program folder, which every account may write to.
+function Set-SharedTemp {
+  $temp = Join-Path $AppDir 'Temp'
+  New-Item -ItemType Directory -Force -Path $temp | Out-Null
+  foreach ($k in 'Server\SwapPath', 'Server\Index\TempPath') {
+    $key = "HKLM:\SOFTWARE\WOW6432Node\VedaBase\4\$k"
+    if (Test-Path -LiteralPath $key) { Set-ItemProperty -LiteralPath $key -Name '(default)' -Value $temp }
+  }
+}
+
+# Install.exe writes Folio's display settings only for the account that ran it.
+# Active Setup gives every account the defaults at its next sign-in, and the
+# finish phase gives them to you now.
+function Register-UserDefaults {
+  $reg = Join-Path $AppDir 'vedabase-defaults.reg'
+  Copy-Item -LiteralPath $UserDefaults -Destination $reg -Force
+  if (-not (Test-Path -LiteralPath $ActiveSetup)) { New-Item -Path $ActiveSetup | Out-Null }
+  $stub = "cmd.exe /c reg query HKCU\Software\VedaBase\4\Views >nul 2>&1 || reg import `"$reg`""
+  New-ItemProperty -LiteralPath $ActiveSetup -Name '(default)' -Value 'VedaBase 25 settings' -PropertyType String -Force | Out-Null
+  New-ItemProperty -LiteralPath $ActiveSetup -Name 'StubPath' -Value $stub -PropertyType String -Force | Out-Null
+  New-ItemProperty -LiteralPath $ActiveSetup -Name 'Version' -Value '1' -PropertyType String -Force | Out-Null
+  New-ItemProperty -LiteralPath $ActiveSetup -Name 'IsInstalled' -Value 1 -PropertyType DWord -Force | Out-Null
+}
+
+# Install.exe puts its desktop icon on the desktop of the account that ran it;
+# move it to the shared desktop so every account sees it.
+function Move-DesktopIcon {
+  $name = 'Bhaktivedanta VedaBase 2003.lnk'
+  $mine = Join-Path ([Environment]::GetFolderPath('Desktop')) $name
+  $public = Join-Path $env:PUBLIC "Desktop\$name"
+  if (Test-Path -LiteralPath $mine) {
+    if (Test-Path -LiteralPath $public) { Remove-Item -LiteralPath $mine -Force }
+    else { Move-Item -LiteralPath $mine -Destination $public -Force }
+  }
+  if (-not (Test-Path -LiteralPath $public)) { New-Shortcut $public "`"$NfoDir\Bhaktivedanta Vedabase 2003.sdw`"" }
+}
+
 # The installer has finished copying once Views.exe and the whole infobase exist
 # and nothing holds the infobase open any more.
 function Test-CopyDone {
-  $master = Join-Path $NfoDir 'Bhaktivedanta Vedabase 2003.nfo'
-  if (-not (Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe'))) { return $false }
-  if (-not (Test-Path -LiteralPath $master) -or (Get-Item -LiteralPath $master).Length -ne $VedaNfoSize) { return $false }
-  try { [IO.File]::Open($master, 'Open', 'Read', 'None').Close(); return $true } catch { return $false }
+  if (-not (Test-Installed)) { return $false }
+  try { [IO.File]::Open($Master, 'Open', 'Read', 'None').Close(); return $true } catch { return $false }
 }
 
+# Cleanup deletes only files whose size and SHA-256 match the manifest, inside
+# the staging items this installer created (recorded in the cache, which only
+# administrators can write), then any of those folders left empty.
 function Remove-Staging {
   if (-not (Test-Path -LiteralPath $StagedList)) { return }
-  foreach ($path in Get-Content -LiteralPath $StagedList) {
-    if ($path) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
+  $ours = @(Get-Content -LiteralPath $StagedList | Where-Object { $_ -in $StageItems })
+  foreach ($row in Read-Table $Manifest) {
+    $rel = $row[1]
+    if ($rel -eq 'Install.exe') { $top = 'C:\Install.exe' }
+    elseif ($rel -like 'Fonts/*' -or $rel -like 'Nfo/*' -or $rel -like 'Spec/*') { $top = 'C:\' + $rel.Split('/')[0] }
+    else { continue }
+    $path = 'C:\' + ($rel -replace '/', '\')
+    if ($top -in $ours -and (Test-Intact $path $row[2] $row[3])) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
   }
-  Remove-Item -LiteralPath $StagedList -Force
+  $left = @()
+  foreach ($item in $ours) {
+    if ((Test-Path -LiteralPath $item -PathType Container) -and -not (Get-ChildItem -LiteralPath $item -Force | Select-Object -First 1)) {
+      Remove-Item -LiteralPath $item -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path -LiteralPath $item) { $left += $item }
+  }
+  if ($left) { Set-Content -LiteralPath $StagedList -Value $left } else { Remove-Item -LiteralPath $StagedList -Force }
+}
+
+function Invoke-Wizard {
+  # Reinstalling over an earlier copy replaces its shadow files, which hold the
+  # user's notes; keep them aside and put them back afterwards.
+  $backup = Join-Path $Cache 'sdw-backup'
+  $kept = @()
+  if (Test-Path -LiteralPath $NfoDir) {
+    $kept = @(Get-ChildItem -LiteralPath $NfoDir -Filter '*.sdw' -File)
+    if ($kept) {
+      New-Item -ItemType Directory -Force -Path $backup | Out-Null
+      $kept | Copy-Item -Destination $backup -Force
+    }
+  }
+
+  Say 'Starting the original installer, Install.exe'
+  Write-Host @'
+
+  In the installer window:
+    1. Next, then Accept the license, then type your name, then Next.
+    2. Next again (ignore its list of old Windows versions).
+    3. "Select Install Type": choose Custom, then Next.
+    4. Tick "All Folio Program Files" and "VedaBase Master Files"
+       (leave "WinAmp media player" unticked), then Next.
+    5. Next, Next, Install, then Next, Next and Finish.
+    6. Close the Fonts window it opens. If it asks to restart now, choose
+       Cancel. This window finishes the setup.
+
+'@
+  Start-Process -FilePath 'C:\Install.exe' -WorkingDirectory 'C:\'
+  # The launcher hands over to irsetup.exe and exits; follow whichever runs.
+  $fixed = $false
+  $quietSince = Get-Date
+  while ($true) {
+    # Done while the wizard is still on its last pages, in case its restart
+    # prompt gets an OK.
+    if (-not $fixed -and (Test-CopyDone)) {
+      Complete-Install -SkipFonts
+      $fixed = $true
+    }
+    if (Get-Process -Name 'irsetup', 'Install' -ErrorAction SilentlyContinue) {
+      $quietSince = Get-Date
+    } elseif (((Get-Date) - $quietSince).TotalSeconds -gt 15) {
+      break
+    }
+    Start-Sleep -Seconds 2
+  }
+
+  if ($kept) {
+    Copy-Item -Path "$backup\*.sdw" -Destination $NfoDir -Force
+    Say 'Kept your existing notes and highlights (.sdw files)'
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe'))) {
+    throw 'The installer did not finish (Views.exe is missing). Run this installer again to retry.'
+  }
+  if (-not (Test-Installed)) {
+    throw 'The VedaBase infobase was not installed. Run this installer again and tick "VedaBase Master Files" on the "Select Packages" page.'
+  }
 }
 
 function Invoke-MachinePhase {
   Write-Host 'VedaBase setup (administrator)' -ForegroundColor White
   New-Item -ItemType Directory -Force -Path $Cache | Out-Null
+  try { Start-Transcript -LiteralPath (Join-Path $Cache 'install.log') -Append | Out-Null } catch { }
 
-  $installed = Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe')
-  if ($installed) {
-    $master = Join-Path $NfoDir 'Bhaktivedanta Vedabase 2003.nfo'
-    if ((Test-Path -LiteralPath $master) -and (Get-Item -LiteralPath $master).Length -ne $VedaNfoSize) {
-      throw "An older VedaBase is installed in $AppDir. Uninstall it first (Settings > Apps), keeping a copy of your *.sdw files if you made notes, then run this again."
-    }
-    Say 'Folio Views is already installed; finishing the setup'
+  $installed = Test-Installed
+  if ($installed) { Say 'Folio Views is already installed; finishing the setup' }
+  elseif ((Test-Path -LiteralPath $Master) -and (Get-Item -LiteralPath $Master).Length -ne $MasterSize) {
+    throw ("An older VedaBase is installed in $AppDir. Copy your notes (the .sdw files in $NfoDir) somewhere " +
+      'safe, uninstall it (Settings > Apps), then run this installer again.')
   }
   # Remember which C:\ items this run creates, so cleanup removes only those.
-  $new = @('C:\Install.exe', 'C:\Fonts', 'C:\Nfo', 'C:\Spec') | Where-Object { -not (Test-Path -LiteralPath $_) }
+  $new = $StageItems | Where-Object { -not (Test-Path -LiteralPath $_) }
   if ($new) { Add-Content -LiteralPath $StagedList -Value $new }
 
   foreach ($row in Read-Table $Manifest) {
     $rel = $row[1]
-    if ($installed -and $rel -notlike 'VaniBase/*' -and $rel -notlike 'Fonts/*') { continue }
-    if ($NoVaniBase -and $rel -like 'VaniBase/*') { continue }
     $target = Get-Target $rel
+    if (-not $target) { continue }
+    if ($rel -like 'VaniBase/*') {
+      if ($NoVaniBase) { continue }
+      # Already in place: the infobase at its full size, or the user's own shadow file.
+      $inApp = Join-Path $NfoDir ($rel -replace '^VaniBase/', '')
+      if ((Test-Path -LiteralPath $inApp) -and ($rel -like '*.sdw' -or (Get-Item -LiteralPath $inApp).Length -eq [int64]$row[2])) { continue }
+    } elseif ($installed) {
+      # Already installed: only fonts that never reached C:\Windows\Fonts.
+      if ($rel -notlike 'Fonts/*' -or (Test-Path -LiteralPath "$env:windir\Fonts\$($rel -replace '^Fonts/', '')")) { continue }
+    }
     if (-not (Test-Intact $target $row[2] $row[3])) { Get-DriveFile $row $target }
   }
 
@@ -314,45 +459,15 @@ function Invoke-MachinePhase {
     if ($code -ne 0) { Warn 'Could not set compatibility mode on Views.exe' }
   }
 
-  if (-not $installed) {
-    Say 'Starting the original installer, Install.exe'
-    Write-Host @'
-
-  In the installer window:
-    1. Next, then Accept the license, then type your name, then Next.
-    2. "Select Install Type": choose Custom, then Next.
-    3. Tick "All Folio Program Files" and "VedaBase Master Files"
-       (leave "WinAmp media player" unticked), then Next.
-    4. Next, Next, Install, then Next and Finish.
-    5. If it asks to restart now, choose Cancel. This window finishes the setup.
-
-'@
-    Start-Process -FilePath 'C:\Install.exe' -WorkingDirectory 'C:\'
-    # The launcher hands over to irsetup.exe and exits; follow whichever runs.
-    $fixed = $false
-    $quietSince = Get-Date
-    while ($true) {
-      # Done while the wizard is still on its last pages, in case its restart
-      # prompt gets an OK.
-      if (-not $fixed -and (Test-CopyDone)) {
-        Complete-Install -SkipFonts
-        $fixed = $true
-      }
-      if (Get-Process -Name 'irsetup', 'Install' -ErrorAction SilentlyContinue) {
-        $quietSince = Get-Date
-      } elseif (((Get-Date) - $quietSince).TotalSeconds -gt 15) {
-        break
-      }
-      Start-Sleep -Seconds 2
-    }
-    if (-not (Test-Path -LiteralPath (Join-Path $AppDir 'Views.exe'))) {
-      throw 'The installer did not finish (Views.exe is missing). Run this installer again to retry.'
-    }
-  }
+  if (-not $installed) { Invoke-Wizard }
 
   Complete-Install
+  Set-SharedTemp
+  Register-UserDefaults
+  Move-DesktopIcon
+  Remove-Item -LiteralPath (Join-Path $Cache 'VaniBase') -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Staging
-  Set-Content -LiteralPath $MachineOk -Value (Get-Date -Format s)
+  Set-Content -LiteralPath $MachineDone -Value $RunToken
 }
 
 # ======================================================================== Finish phase
@@ -362,13 +477,6 @@ function Invoke-FinishPhase {
   if (-not (Test-Path -LiteralPath 'HKCU:\Software\VedaBase\4\Views')) {
     Say 'Restoring Folio''s default settings for your account'
     if ((Invoke-Tool 'reg.exe' @('import', $UserDefaults)) -ne 0) { Warn "Could not import $UserDefaults" }
-  }
-
-  # Install.exe puts its desktop icon in the account that ran it.
-  $desktop = [Environment]::GetFolderPath('Desktop')
-  $name = 'Bhaktivedanta VedaBase 2003.lnk'
-  if (-not (Test-Path -LiteralPath "$desktop\$name") -and -not (Test-Path -LiteralPath "$env:PUBLIC\Desktop\$name")) {
-    New-Shortcut "$desktop\$name" "`"$NfoDir\Bhaktivedanta Vedabase 2003.sdw`""
   }
 
   Say 'Done.'
@@ -391,5 +499,6 @@ if ($Phase -eq 'Machine') {
   }
   exit 0
 }
+try { Start-Transcript -LiteralPath (Join-Path $env:TEMP 'VedaBase-install.log') -Append | Out-Null } catch { }
 Invoke-UserPhase
 exit 0

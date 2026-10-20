@@ -8,14 +8,20 @@
 vb_cookie() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
 
 # Unix socket paths are limited to 107 bytes, too short for a deep
-# VEDABASE_HOME, so the sockets live in a private directory under /tmp, named
-# by a hash of the home so that two installs never share one.
+# VEDABASE_HOME, so the sockets live in a short private directory: /tmp, or
+# the login session's runtime directory if another user has taken the /tmp
+# name, or failing both the install's own run/ folder. The file name carries a
+# hash of the home so that two installs never share one.
+vb_sock_dir_ok() { # DIR: ours, private, not a symlink
+  [[ -d $1 ]] || mkdir -m 700 "$1" 2>/dev/null || [[ -d $1 ]] || return 1
+  [[ -O $1 && ! -L $1 ]] || return 1
+  chmod 700 "$1"
+}
 vb_sock() { # NAME
   local d
-  d=/tmp/vedabase-$(id -u)
-  [[ -d $d ]] || mkdir -m 700 "$d" 2>/dev/null || [[ -d $d ]] || vb_die "cannot create $d"
-  [[ -O $d && ! -L $d ]] || vb_die "$d belongs to someone else; remove it and retry"
-  chmod 700 "$d"
+  for d in "/tmp/vedabase-$(id -u)" "${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/vedabase}" "$VB_RUN"; do
+    [[ -n $d ]] && vb_sock_dir_ok "$d" && break
+  done
   printf '%s/%s-%s.sock\n' "$d" "$1" "$(printf '%s' "$VB_HOME" | cksum | cut -d' ' -f1)"
 }
 
@@ -92,16 +98,14 @@ vb_display_stop() { # NAME
 
 vb_web_port() { printf '%s\n' "${VEDABASE_WEB_PORT:-6080}"; }
 
+# A new password each time the viewer starts. VNC passwords stop at 8
+# characters; 6 random bytes in URL-safe base64 fill them (48 bits).
 vb_web_password() {
   local d=$VB_RUN/web
   mkdir -p "$d"
   chmod 700 "$VB_RUN" "$d"
-  if [[ ! -s $d/password ]]; then
-    # VNC passwords are 8 characters at most; 8 hex digits from urandom.
-    (umask 077 && od -An -N4 -tx1 /dev/urandom | tr -d ' \n' >"$d/password")
-  fi
+  (umask 077 && head -c 6 /dev/urandom | base64 | tr -d '\n' | tr '+/' '-_' >"$d/password")
   (umask 077 && tigervncpasswd -f <"$d/password" >"$d/vncpasswd")
-  cat "$d/password"
 }
 
 vb_novnc_dir() {
@@ -120,7 +124,7 @@ vb_websockify_alive() {
 vb_web_start() { # GEOMETRY
   local d=$VB_RUN/web port novnc
   port=$(vb_web_port)
-  vb_web_password >/dev/null
+  vb_display_alive web || vb_web_password
   vb_display_start web "$1" VncAuth
   vb_websockify_alive && return 0
   if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then

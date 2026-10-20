@@ -14,11 +14,14 @@ usage() {
   cat <<EOF
 Usage: ./install.sh [OPTIONS]
 
-  --home DIR       where Wine, the prefix and the downloads go
+Running it accepts the Bhaktivedanta Archives license that Install.exe shows
+(see "License" in README.md); it clicks Accept for you.
+
+  --home DIR       where Wine, the prefix and the downloads go, about 3.5 GB
                    (default: $(vb_default_home))
   --source SRC     take the VedaBase files from SRC instead of Google Drive:
-                   a directory or host:dir laid out like the Drive folders,
-                   e.g. you@server:/path/to/vedabase/downloads
+                   a directory, or host:dir over ssh, laid out like the Drive
+                   folders (Install.exe, Fonts/, Nfo/, Spec/, VaniBase/)
   --restore FILE   unpack a prefix saved by 'vedabase backup' instead of
                    running Install.exe
   --name NAME      name to register in the installer (default: your full name)
@@ -28,13 +31,32 @@ Usage: ./install.sh [OPTIONS]
 EOF
 }
 
-name='' restore='' vanibase=1 reinstall=0
+need_value() { (($# >= 2)) || vb_die "$1 needs a value (see --help)"; }
+
+name='' restore='' vanibase=1 reinstall=0 remote_re='^[^/:]+:'
 while (($#)); do
   case $1 in
-    --home) export VEDABASE_HOME=$2; shift 2 ;;
-    --source) export VEDABASE_SOURCE=$2; shift 2 ;;
-    --restore) restore=$(readlink -f -- "$2"); shift 2 ;;
-    --name) name=$2; shift 2 ;;
+    --home)
+      need_value "$@"
+      VEDABASE_HOME=$(realpath -m -- "$2")
+      export VEDABASE_HOME
+      shift 2 ;;
+    --source)
+      need_value "$@"
+      if [[ $2 =~ $remote_re ]]; then
+        export VEDABASE_SOURCE=$2
+      else
+        [[ -d $2 ]] || vb_die "--source: no such directory: $2"
+        VEDABASE_SOURCE=$(realpath -- "$2")
+        export VEDABASE_SOURCE
+      fi
+      shift 2 ;;
+    --restore)
+      need_value "$@"
+      [[ -f $2 ]] || vb_die "--restore: no such file: $2"
+      restore=$(realpath -- "$2")
+      shift 2 ;;
+    --name) need_value "$@"; name=$2; shift 2 ;;
     --no-vanibase) vanibase=0; shift ;;
     --reinstall) reinstall=1; shift ;;
     -h | --help) usage; exit 0 ;;
@@ -42,15 +64,34 @@ while (($#)); do
   esac
 done
 
+[[ $EUID -ne 0 ]] || vb_die "run install.sh as yourself, without sudo; it asks for sudo itself only if it has to"
 [[ $(uname -m) == x86_64 ]] || vb_die "needs an x86_64 Linux (this is $(uname -m))"
-for tool in curl sha256sum tar xz python3; do
-  command -v "$tool" >/dev/null || vb_die "missing '$tool' (sudo apt-get install $tool)"
+missing_tools=()
+for t in curl:curl sha256sum:coreutils tar:tar xz:xz-utils python3:python3 pgrep:procps ps:procps ss:iproute2; do
+  command -v "${t%%:*}" >/dev/null || missing_tools+=("${t#*:}")
 done
+((${#missing_tools[@]} == 0)) ||
+  vb_die "some tools are missing; install them once with:  sudo apt-get install $(printf '%s\n' "${missing_tools[@]}" | sort -u | paste -sd' ')"
 
 vb_init_paths
-mkdir -p "$VB_HOME" "$VB_LOGS" "$VB_CONFIG_DIR"
+[[ -e $VB_HOME ]] || { mkdir -p "$VB_HOME" && chmod 700 "$VB_HOME"; } # notes and licensed files: yours only
+[[ ! -e $VB_HOME/app || -e $VB_HOME/app/bin/vedabase ]] ||
+  vb_die "$VB_HOME/app exists and is not VedaBase's; choose another --home"
+mkdir -p "$VB_LOGS" "$VB_CONFIG_DIR"
 printf '%s\n' "$VB_HOME" >"$VB_CONFIG_DIR/home"
+trap 'rc=$?; ((rc == 0)) || vb_warn "install.sh did not finish; logs are in ${VB_LOGS:-}. Running it again continues where it stopped."' EXIT
 vb_say "Installing into $VB_HOME"
+
+skip_vani=''
+((vanibase)) || skip_vani=VaniBase/
+if [[ -z $restore ]] && ! vb_installed; then
+  # Decide these before downloading 1.1 GB.
+  [[ -n ${VEDABASE_INSTALL_DISPLAY:-} || -n ${DISPLAY:-} ]] || vb_can_run_xvnc ||
+    vb_die "Install.exe needs a display. Run once:  sudo apt-get install x11-xkb-utils xkb-data  (or run this from a desktop session)"
+  avail_kb=$(df -Pk "$VB_HOME" 2>/dev/null | awk 'NR == 2 {print $4}') || avail_kb=''
+  [[ -z $avail_kb ]] || ((avail_kb >= 4 * 1024 * 1024)) ||
+    vb_die "$VB_HOME needs about 4 GB free (it has $((avail_kb / 1024)) MB); choose another place with --home"
+fi
 
 vb_ensure_pkgs deps "${VB_PKGS_WINE[@]}"
 # Private displays: for running Install.exe unseen, and for 'vedabase web'.
@@ -70,13 +111,16 @@ fi
 if [[ -n $restore ]]; then
   [[ ! -e $VB_PREFIX ]] || vb_die "$VB_PREFIX already exists; add --reinstall to replace it"
   vb_say "Restoring the prefix from $restore"
-  tar -C "$VB_HOME" -xzf "$restore"
-  vb_installed || vb_die "$restore did not contain an installed prefix"
+  # Only the prefix: a backup must not be able to replace Wine or these scripts.
+  tar -C "$VB_HOME" -xzf "$restore" prefix || vb_die "$restore is not a backup made by 'vedabase backup'"
+  vb_installed || vb_die "$restore did not contain a finished install"
 fi
 
 if ! vb_installed; then
-  [[ ! -e $VB_PREFIX ]] || vb_die "$VB_PREFIX exists but holds no finished install; re-run with --reinstall"
-  vb_fetch_files
+  vb_fetch_files '' "$skip_vani"
+  vb_recover_prefix # finishes an interrupted install, or moves it aside
+fi
+if ! vb_installed; then
   saved_display=${DISPLAY-} saved_xauth=${XAUTHORITY-}
   # A private display keeps the wizard off your screen and the click offsets exact.
   if [[ -n ${VEDABASE_INSTALL_DISPLAY:-} ]]; then
@@ -84,30 +128,29 @@ if ! vb_installed; then
     vb_ensure_pkgs deps xdotool
   elif vb_can_run_xvnc; then
     vb_display_start install 1600x1000 None
-  elif [[ -n ${DISPLAY:-} ]]; then
+  else
     vb_warn "x11-xkb-utils is not installed, so the installer runs on your screen ($DISPLAY). Leave the mouse alone until it finishes."
     vb_ensure_pkgs deps xdotool
-  else
-    vb_die "no display to run Install.exe on: sudo apt-get install x11-xkb-utils, or run this from a desktop session"
   fi
-  [[ -n $name ]] || name=$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)
+  [[ -n $name ]] || name=$(getent passwd "${USER:-$(id -un)}" | cut -d: -f5 | cut -d, -f1) || true
   vb_make_prefix
   vb_stage_installer
-  vb_run_installer "${name:-$USER}"
+  vb_run_installer "${name:-${USER:-VedaBase reader}}"
   vb_check_install
   vb_postinstall
   vb_display_stop install
   if [[ -n $saved_display ]]; then export DISPLAY=$saved_display; else unset DISPLAY; fi
   if [[ -n $saved_xauth ]]; then export XAUTHORITY=$saved_xauth; else unset XAUTHORITY; fi
-elif [[ -z $restore ]]; then
-  vb_say "Folio Views is already installed; checking the rest"
-  vb_fetch_files
+else
+  vb_say "Folio Views is installed"
 fi
 
-# A restored prefix may already carry VaniBase with no download beside it.
-if ((vanibase)) && ! [[ -f $VB_APP_DIR/Nfo/VaniBase_25.nfo && ! -f $VB_DOWNLOADS/VaniBase/VaniBase_25.nfo ]]; then
-  vb_fetch_files VaniBase/
-  vb_add_vanibase
+if ((vanibase)); then
+  vani=$VB_APP_DIR/Nfo/VaniBase_25.nfo
+  if [[ ! -f $vani || ! -f $VB_APP_DIR/Nfo/VaniBase_25.sdw || $(vb_size "$vani") != "$(vb_manifest_size VaniBase/VaniBase_25.nfo)" ]]; then
+    vb_fetch_files VaniBase/
+    vb_add_vanibase
+  fi
 fi
 
 # The launcher runs from a copy under VEDABASE_HOME, so moving or deleting this
@@ -164,4 +207,6 @@ Done. Open it with:
   vedabase vanibase     (VaniBase 25)
   vedabase web          (headless: prints the SSH tunnel and browser link)
 EOF
-command -v vedabase >/dev/null || vb_warn "$(dirname -- "$VB_BIN_LINK") is not on PATH yet; open a new terminal or run $VB_BIN_LINK"
+if ! command -v vedabase >/dev/null; then
+  vb_warn "the 'vedabase' command works in new terminals after you log out and back in; until then use $VB_BIN_LINK"
+fi

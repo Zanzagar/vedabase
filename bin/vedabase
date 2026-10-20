@@ -23,9 +23,10 @@ Usage: vedabase [COMMAND] [INFOBASE]
   backup [FILE]     save the prefix (program, infobases, your notes) as .tar.gz
   where             print where everything lives
 
-INFOBASE is vedabase (default), vanibase, help, or folio (Folio Views with no
-infobase; use File > Open). With no COMMAND: open if there is a display, web
-otherwise.
+INFOBASE is vedabase (default), vanibase, help (Folio's own help infobase),
+or folio (Folio Views with no infobase; use File > Open). Without a COMMAND,
+'vedabase' or 'vedabase vanibase' opens a window if there is a display and
+the browser viewer otherwise; 'vedabase -h' shows this text.
 EOF
 }
 
@@ -78,11 +79,20 @@ web_url() {
 cmd_web() {
   require_install
   local geom=${VEDABASE_WEB_GEOMETRY:-1600x1000} host port
-  [[ -x /usr/bin/xkbcomp ]] ||
-    vb_die "the browser viewer needs x11-xkb-utils (sudo apt-get install x11-xkb-utils, then re-run install.sh); on a desktop use 'vedabase open'"
+  [[ -x /usr/bin/xkbcomp && -d /usr/share/X11/xkb ]] ||
+    vb_die "the browser viewer needs x11-xkb-utils and xkb-data (sudo apt-get install x11-xkb-utils xkb-data); on a desktop use 'vedabase open'"
+  command -v Xtigervnc >/dev/null || [[ -x $VB_TOOLS/usr/bin/Xtigervnc ]] ||
+    vb_die "the browser viewer's parts are missing; run install.sh again"
   vb_env
-  web_running || [[ -z $(vb_prefix_pids) ]] ||
+  if web_running; then
+    if [[ -n $(vb_prefix_pids) ]]; then
+      # Already showing: just give the link again rather than a second Folio.
+      printf 'VedaBase is already running in the browser viewer:\n  %s\n' "$(web_url)"
+      return 0
+    fi
+  elif [[ -n $(vb_prefix_pids) ]]; then
     vb_die "VedaBase is already open on a desktop; close it, or run 'vedabase stop', first"
+  fi
   vb_web_start "$geom"
   # Fill the virtual desktop: Folio restores its window to AppPosition
   # (left,top,right,bottom) and does not maximize under Wine by itself.
@@ -91,6 +101,11 @@ cmd_web() {
   launch "${1:-vedabase}" "$geom"
   host=$(hostname -f 2>/dev/null || hostname)
   port=$(vb_web_port)
+  if [[ -n ${WSL_DISTRO_NAME:-} ]]; then
+    # WSL forwards localhost to Windows, so no tunnel is needed.
+    printf '\nVedaBase is running. Open this in your Windows browser:\n  %s\n' "$(web_url)"
+    return 0
+  fi
   cat <<EOF
 
 VedaBase is running in a private display on $host.
@@ -148,7 +163,11 @@ cmd_doctor() {
   fi
   f=$(find "$VB_PREFIX/drive_c/windows/Fonts" -maxdepth 1 -iname 'balaram_.ttf' 2>/dev/null)
   check "diacritic fonts in C:\\windows\\Fonts" test -n "$f"
-  check "launcher on PATH" command -v vedabase
+  if command -v vedabase >/dev/null 2>&1; then
+    printf '  ok    vedabase command on PATH\n'
+  else
+    printf '  info  the vedabase command works after you log out and back in; meanwhile run %s\n' "$VB_BIN_LINK"
+  fi
   if [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; then
     echo "  info  display ${DISPLAY:-$WAYLAND_DISPLAY}: 'vedabase open' will show a window here"
   else
@@ -164,7 +183,7 @@ cmd_backup() {
   [[ -z $(vb_prefix_pids) ]] || vb_die "VedaBase is running; close it (vedabase stop) first"
   mkdir -p -- "$(dirname -- "$out")"
   vb_say "Saving $VB_PREFIX to $out"
-  tar -C "$VB_HOME" -czf "$out" prefix
+  (umask 077 && tar -C "$VB_HOME" -czf "$out" prefix) # your notes and licensed files: yours only
   vb_say "Restore elsewhere with: install.sh --restore $out"
 }
 

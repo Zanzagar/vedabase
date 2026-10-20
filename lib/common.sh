@@ -67,7 +67,12 @@ vb_env() {
   export LD_LIBRARY_PATH=$VB_TOOLS/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 }
 
-vb_installed() { [[ -f $VB_APP_DIR/Views.exe ]]; }
+# Finished means post-install ran: it leaves a stamp (installs from before the
+# stamp existed are recognised by the VedaBase_25.nfo link they all have).
+vb_installed() {
+  [[ -f $VB_PREFIX/.vedabase-installed ]] ||
+    [[ -f $VB_APP_DIR/Views.exe && -e $VB_APP_DIR/Nfo/VedaBase_25.nfo ]]
+}
 
 # Portable between GNU (Linux) and BSD (macOS) userlands.
 vb_size() { wc -c <"$1" | tr -d ' '; }

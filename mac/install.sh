@@ -30,7 +30,16 @@ fi
 vb_init_paths
 VB_WINE_DIR="$VB_HOME/wine/Wine Stable.app/Contents/Resources/wine"
 mkdir -p "$VB_HOME" "$VB_LOGS"
+trap 'rc=$?; ((rc == 0)) || vb_warn "the install did not finish. Logs: $VB_LOGS (in Finder: Go > Go to Folder). Running the installer again continues where it stopped."' EXIT
 vb_say "Installing into $VB_HOME"
+# Keep the Mac awake while this runs: the downloads and the wizard take a while.
+caffeinate -i -w $$ >/dev/null 2>&1 &
+
+if ! vb_installed; then
+  avail_kb=$(df -Pk "$VB_HOME" 2>/dev/null | awk 'NR == 2 {print $4}') || avail_kb=''
+  [[ -z $avail_kb ]] || ((avail_kb >= 4 * 1024 * 1024)) ||
+    vb_die "the installer needs about 4 GB of free disk space (this Mac has $((avail_kb / 1024)) MB free)"
+fi
 
 # Gcenx's Wine is an Intel (x86_64) program; Apple Silicon runs it through Rosetta 2.
 if [[ $(uname -m) == arm64 ]] && ! /usr/bin/arch -x86_64 /usr/bin/true 2>/dev/null; then
@@ -44,7 +53,8 @@ if [[ ! -x $VB_WINE_DIR/bin/wine ]]; then
   tarball=$VB_HOME/cache/wine-stable-osx64.tar.xz
   mkdir -p "$VB_HOME/cache" "$VB_HOME/wine"
   vb_say "Downloading Wine for macOS (185 MB)"
-  if ! curl -fL -# --retry 3 -o "$tarball" "$MAC_WINE_URL"; then
+  status=$(curl -sIL -o /dev/null -w '%{http_code}' "$MAC_WINE_URL") || status=''
+  if [[ $status == 404 ]]; then
     # Gcenx retags releases and removes old files. Fall back to the newest
     # stable build, checked against the SHA-256 GitHub publishes for it.
     vb_warn "the pinned Wine build is gone; looking up the newest stable one"
@@ -57,10 +67,12 @@ if [[ ! -x $VB_WINE_DIR/bin/wine ]]; then
             if (/^wine-stable-.*-osx64[.]tar[.]xz$/.test(a.name) && /^sha256:/.test(a.digest || ""))
               return a.browser_download_url + " " + a.digest.slice(7);
         return "";
-      }' "$releases") ||
+      }' "$releases") || true
+    [[ -n ${MAC_WINE_URL:-} && -n ${MAC_WINE_SHA256:-} ]] ||
       vb_die "no stable Wine build found at github.com/Gcenx/macOS_Wine_builds"
-    curl -fL -# --retry 3 -o "$tarball" "$MAC_WINE_URL"
   fi
+  curl -fL -# --retry 3 -o "$tarball" "$MAC_WINE_URL" ||
+    vb_die "could not download Wine; check the internet connection and run the installer again"
   [[ $(vb_sha256 <"$tarball") == "$MAC_WINE_SHA256" ]] || vb_die "checksum mismatch for $MAC_WINE_URL"
   tar -xJf "$tarball" -C "$VB_HOME/wine"
   rm -f "$tarball"
@@ -69,36 +81,54 @@ if [[ ! -x $VB_WINE_DIR/bin/wine ]]; then
 fi
 vb_env
 
-vb_fetch_files
-
 if ! vb_installed; then
-  [[ ! -e $VB_PREFIX ]] || rm -rf "$VB_PREFIX" # a half-made prefix from an interrupted run
+  vb_fetch_files
+  vb_recover_prefix # finishes an interrupted install, or moves it aside
+fi
+if ! vb_installed; then
   vb_make_prefix
   # Let Cmd+C / Cmd+V work as Ctrl+C / Ctrl+V in Folio.
   for key in LeftCommandIsCtrl RightCommandIsCtrl; do
-    wine reg add 'HKCU\Software\Wine\Mac Driver' /v "$key" /t REG_SZ /d Y /f >>"$VB_LOGS/wine.log" 2>&1
+    wine reg add 'HKCU\Software\Wine\Mac Driver' /v "$key" /t REG_SZ /d Y /f >>"$VB_LOGS/wine.log" 2>&1 ||
+      vb_warn "could not map Cmd to Ctrl (Ctrl+C / Ctrl+V still work)"
   done
   vb_stage_installer
   cat <<'EOF'
 
 ==> The original VedaBase installer opens now. In its window:
       1. Next, then Accept the license, then type your name, then Next.
-      2. "Select Install Type": choose Custom, then Next.
-      3. Tick "All Folio Program Files" and "VedaBase Master Files"
+      2. Next again (ignore its list of old Windows versions).
+      3. "Select Install Type": choose Custom, then Next.
+      4. Tick "All Folio Program Files" and "VedaBase Master Files"
          (leave "WinAmp media player" unticked), then Next.
-      4. Next, Next, Install, then Next and Finish.
-      5. Answer the restart questions (either answer is fine), and close the
+      5. Next, Next, Install, then Next, Next and Finish.
+      6. Answer the restart questions (either answer is fine) and close the
          Fonts window it opens. This Terminal window then carries on.
 
 EOF
   (cd "$VB_PREFIX/drive_c" && wine 'C:\Install.exe' >>"$VB_LOGS/installer.log" 2>&1) || true
-  wineserver -w
+  # wineserver -w returns once every installer window is closed. The Fonts
+  # window can open behind others, so remind the user while waiting.
+  wineserver -w &
+  waiter=$!
+  waited=0
+  while kill -0 "$waiter" 2>/dev/null; do
+    sleep 5
+    waited=$((waited + 5))
+    if ((waited % 120 == 0)) && [[ -f $VB_APP_DIR/irunin.ini ]]; then
+      vb_say "Still waiting: once you have clicked Finish, close the installer's remaining windows (the Fonts window may be behind this one)."
+    fi
+  done
   wineboot --restart >>"$VB_LOGS/installer.log" 2>&1 || true
   wineserver -w
   vb_check_install
   vb_postinstall
 fi
-vb_add_vanibase
+vani=$VB_APP_DIR/Nfo/VaniBase_25.nfo
+if [[ ! -f $vani || ! -f $VB_APP_DIR/Nfo/VaniBase_25.sdw || $(vb_size "$vani") != "$(vb_manifest_size VaniBase/VaniBase_25.nfo)" ]]; then
+  vb_fetch_files VaniBase/
+  vb_add_vanibase
+fi
 
 # --- apps for the Dock and Launchpad ---------------------------------------------
 make_app() { # NAME BUNDLE_ID WINDOWS_PATH_OF_SHADOW_FILE
