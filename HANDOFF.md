@@ -53,8 +53,11 @@ devotees the installers go to: `.gitattributes` keeps it out of GitHub's "Downlo
 - **macOS**, simulated only (`tests/mac-sim.sh`: real bash 3.2, macOS commands shimmed,
   Linux Wine standing in, a user who never closes the Fonts window). Never run on a Mac.
 - **Windows**: parsed by PowerShell 7 on Linux; `Restore-Notes` and the Active Setup
-  command line unit-tested there. Never run on Windows. Atman, Corey's Windows PC, can
-  test it with `docs/testing.md`.
+  command line unit-tested there. ~~Never run on Windows.~~ **► First real run
+  2026-10-20 on Atman (Windows 11 Home 25H2, Windows PowerShell 5.1.26100), by the
+  Atman session: the elevated phase stopped before any download, because 5.1's
+  `New-Item -Force` refuses `C:\`; fixed in 9eefebf, re-run pending.** Atman, Corey's
+  Windows PC, can test it with `docs/testing.md`.
 - **Found this session, worth knowing:** Install.exe's launcher checks free space in
   32-bit arithmetic and refuses when the free space sits just above a multiple of
   4 GiB (the installers now write a 128 MiB filler first; `docs/how-it-works.md`).

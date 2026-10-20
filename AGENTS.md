@@ -68,6 +68,11 @@ matters, with the static checks before every commit:
 - Install.exe's launcher checks free space in 32-bit arithmetic: the installers
   write a filler when the free space sits just above a multiple of 4 GiB. Do not
   remove it as dead code.
+- The Windows script runs under Windows PowerShell 5.1, not the PowerShell 7
+  the Linux checks parse it with, and the two differ: 5.1's `New-Item -Force`
+  refuses a drive root (`C:\`), which stopped every Windows install before its
+  first download until a real run on Atman found it (9eefebf). A parse proves
+  syntax only; Windows behaviour needs a Windows run.
 
 ## Multi-agent runs
 
