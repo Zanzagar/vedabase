@@ -31,7 +31,9 @@ public repository sees it**).
   2019 copy-to-Unicode utility whose buttons Windows updates break, which answers, at
   least in part, the README's "What's next" item "What Windows updates broke". They are in
   the archive below
-  (`unicode-files-2026-10-20/`), not here, and nobody has read them yet. The
+  (`unicode-files-2026-10-20/`), not here, ~~and nobody has read them yet~~ **► and were
+  read on 2026-10-26; the notes on them stay private, beside them in the archive
+  (`analysis-2026-10-26/README.md`)**. The
   correspondence, and news in it about the Drive folders' maintainer, are in the
   maintainer's private notes (Claude's memory for this folder), since this repository is
   public. What follows from them: "Open, in order", A–C.
@@ -128,20 +130,23 @@ public repository sees it**).
   PowerShell builds the tests use). **► Since 2026-10-26 also `session-7dc8950f-2026-10-20/`
   (that session's transcript) and `unicode-files-2026-10-20/` (the five files of
   2026-10-20 from the devotee who shares the installers, one folder each, with
-  `SHA256SUMS`; untrusted, and not for this repository).**
+  `SHA256SUMS`; untrusted, and not for this repository; ► with the private notes on them,
+  2026-10-26, in `analysis-2026-10-26/`).**
 
 ## Open, in order
 
 **► New on 2026-10-26, ahead of 1–4** (lettered, so that the numbers the frozen briefs
 cite stay right):
 
-A. **Read the devotee's five files** (State, 2026-10-26) as data, the plain-text brief
-   addressed to the maintainer first; run nothing from them. Then settle with the
+A. ~~**Read the devotee's five files** (State, 2026-10-26) as data, the plain-text brief
+   addressed to the maintainer first; run nothing from them.~~ **► Read on 2026-10-26: start
+   from the private notes in the archive (`unicode-files-2026-10-20/analysis-2026-10-26/README.md`),
+   not from the files; still run nothing from them.** Then settle with the
    maintainer what to build. They bear on two of the README's "What's next" items, "What
    Windows updates broke" and "Unicode text". Nothing from the files enters this
    repository until the maintainer agrees, and so do their authors: the utility's author
-   for the zip; for the other four, who wrote them is not stated (ask the devotee who sent
-   them).
+   for the zip; for the other four, ~~who wrote them is not stated (ask the devotee who sent
+   them)~~ **► the private notes say who made them**.
 B. **The maintainer's call:** how the README ("If the download breaks", "What's next",
    the closing thanks) and `docs/sources.md` speak of the Drive folders' maintainer, given
    the news in the private notes. Ask the maintainer how it should read before changing
