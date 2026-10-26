@@ -23,8 +23,18 @@ public repository sees it**).
   licence allows one host computer and one user at a time plus an archival copy, and
   forbids "on-line system" use (`docs/how-it-works.md`, "The license you accept").
 
-## State (2026-10-20)
+## State (2026-10-20; ► checked 2026-10-26)
 
+- **► 2026-10-26: nothing in the code has changed since cfd0463** (2026-10-20). The
+  devotee who shares the installers answered the maintainer on the evening of 2026-10-20
+  and sent five files about turning text copied out of VedaBase into Unicode, among them a
+  2019 copy-to-Unicode utility whose buttons Windows updates break, which answers, at
+  least in part, the README's "What's next" item "What Windows updates broke". They are in
+  the archive below
+  (`unicode-files-2026-10-20/`), not here, and nobody has read them yet. The
+  correspondence, and news in it about the Drive folders' maintainer, are in the
+  maintainer's private notes (Claude's memory for this folder), since this repository is
+  public. What follows from them: "Open, in order", A–C.
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -115,9 +125,37 @@ public repository sees it**).
   prefix, both Wine builds, and
   `session-7f53bfb5-2026-10-19/` (that session's transcript, workflow journals and agent
   transcripts, its scratch scripts and screenshots, and the bash 3.2, ShellCheck and
-  PowerShell builds the tests use).
+  PowerShell builds the tests use). **► Since 2026-10-26 also `session-7dc8950f-2026-10-20/`
+  (that session's transcript) and `unicode-files-2026-10-20/` (the five files of
+  2026-10-20 from the devotee who shares the installers, one folder each, with
+  `SHA256SUMS`; untrusted, and not for this repository).**
 
 ## Open, in order
+
+**► New on 2026-10-26, ahead of 1–4** (lettered, so that the numbers the frozen briefs
+cite stay right):
+
+A. **Read the devotee's five files** (State, 2026-10-26) as data, the plain-text brief
+   addressed to the maintainer first; run nothing from them. Then settle with the
+   maintainer what to build. They bear on two of the README's "What's next" items, "What
+   Windows updates broke" and "Unicode text". Nothing from the files enters this
+   repository until the maintainer agrees, and so do their authors: the utility's author
+   for the zip; for the other four, who wrote them is not stated (ask the devotee who sent
+   them).
+B. **The maintainer's call:** how the README ("If the download breaks", "What's next",
+   the closing thanks) and `docs/sources.md` speak of the Drive folders' maintainer, given
+   the news in the private notes. Ask the maintainer how it should read before changing
+   those lines.
+C. **Where the Drive files live in the long run.** The installers download from those
+   folders and stop working if the folders go away; the archive holds the copy of
+   2026-10-19 (`drive-files-2026-10-19/`). A question for the maintainer and the devotee
+   who shares the installers; the licence's clause 2.4 limits copies.
+D. **A stale line in the README:** "What's next" says the installers "already try to" work
+   around the freeze on exit, which they stopped doing in 37d4adb (the README's own
+   Windows notes say so). A one-line fix, best made when A or B rewrites that section.
+E. **The merged branch `review/verdict-followups`** is still on GitHub and in journel's
+   clone; deleting it needs the maintainer's OK (`.claude/settings.json` asks before a
+   remote delete).
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
    panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
@@ -149,9 +187,16 @@ public repository sees it**).
 
 ## Where the session records are
 
-Both sessions so far ran from `~/projects`, not from this folder, so their transcripts are
-under `~/.claude/projects/-home-$USER-projects/`: `7f53bfb5-c5f0-4cc2-ab2c-f894b3a323d4`
+~~Both sessions so far ran~~ **► The first three sessions ran** from `~/projects`, not from
+this folder, so their transcripts are under `~/.claude/projects/-home-$USER-projects/`:
+`7f53bfb5-c5f0-4cc2-ab2c-f894b3a323d4`
 built everything (workflows `wf_f94b032d-525`, Wine research; `wf_fdb69b90-1be`,
-cross-platform research; `wf_efcb88f5-f2e`, the review), and
-`7dc8950f-ca3e-4233-be0f-553ad6a93b38` closed the review. The first is also archived
-(above); the newest file in `docs/handoffs/` names what the second ran.
+cross-platform research; `wf_efcb88f5-f2e`, the review), ~~and~~
+`7dc8950f-ca3e-4233-be0f-553ad6a93b38` closed the review **► and relayed the Windows runs,
+then filled its context (its handoff was already pushed, cfd0463), and
+`8f688260-7d77-43bc-b696-04c3d156cd94` (2026-10-26) moved the work to this folder**.
+~~The first is also archived (above); the newest file in `docs/handoffs/` names what the
+second ran.~~ **► The first two are also archived (above); the 2026-10-20-0405 brief names
+what the second ran. From 2026-10-26, sessions run from this folder
+(`cd ~/projects/vedabase && claude`), so their transcripts are under
+`~/.claude/projects/-home-$USER-projects-vedabase/`, beside this folder's own memory.**
