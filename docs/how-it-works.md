@@ -173,11 +173,13 @@ as you, with no root:
     and `xkb-data`), because the keymap compiler's path is compiled in.
   - *Finding it again:* `vedabase stop` ends every `Xtigervnc` of your
     account whose arguments name the socket the display was started with.
-    That socket is recorded in the display's run folder, because its name
-    carries a hash of the installation's folder as it was spelled (`/x/vb`
-    and `/x/vb/` would give two names). The PID it records is never trusted
-    on its own: the record outlives the process (a reboot leaves it), and
-    the number may then belong to another program, even another Xvnc.
+    Each display gets a socket of its own, named partly at random and
+    recorded in the display's run folder: any spelling of the installation's
+    folder (`/x/vb` or `/x/vb/`) finds the record, and no record of an
+    earlier display (one left in a folder since moved, say) can name a later
+    one's processes. The PID it records is never trusted on its own: the
+    record outlives the process (a reboot leaves it), and the number may
+    then belong to another program, even another Xvnc.
 - **websockify + noVNC**, also unpacked from Ubuntu packages. websockify is
   started with the system `/usr/bin/python3`, because the package is built for
   it. It listens on `127.0.0.1:6080`. A localhost port is open to every user
@@ -212,6 +214,14 @@ as you, with no root:
   `vedabase stop` warns if the display's Xvnc is still running 5 seconds
   after it was stopped, whether it answers or not (one that hangs can do
   neither).
+
+`vedabase open`, `web` and `stop` run one at a time for an installation:
+each holds a lock (`flock` on `run/lock`) while it runs, and the kernel lets
+it go when the command ends, so that two at once cannot take each other's
+processes for leftovers. What they leave running (Xvnc, websockify, Wine)
+never holds it. `stop` finds Wine by the `WINEPREFIX` of its processes,
+compared as a folder, so that any spelling of the installation's folder finds
+it, and closes Wine before it ends the display.
 
 The Linux installer uses the same kind of private display, a separate `Xvnc`,
 so the wizard never appears on anyone's screen. Where `x11-xkb-utils` is
