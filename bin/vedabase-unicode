@@ -12,7 +12,12 @@ set -euo pipefail
 
 VB_UNICODE_MAP=${VB_UNICODE_MAP:-$(cd "$(dirname "$0")/.." && pwd)/lib/balaram-unicode.tsv}
 work=$(mktemp -d "${TMPDIR:-/tmp}/vedabase-unicode.XXXXXX")
-trap 'rm -rf -- "$work"' EXIT
+locked=0
+trap 'rm -rf -- "$work"; if ((locked)); then rmdir -- "$lock" 2>/dev/null; fi' EXIT
+# Without these, Ctrl-C or a closed terminal ends the script without the EXIT trap.
+trap 'exit 130' INT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
 
 # The table's rows, comments left out, as "legacy<TAB>unicode".
 rows() { grep -v '^#' "$VB_UNICODE_MAP" | grep . || true; }
@@ -39,32 +44,42 @@ make_refuse() {
 }
 
 # convert IN OUT: OUT gets the converted text (or IN as it was, unless it is
-# converted). Returns 0, 3 or 4, as the exit status above.
+# converted). Returns 0, 3 or 4, as the exit status above, or 1 if a step
+# failed. Every step is checked by hand: called as 'convert ... || status=$?',
+# a function runs without set -e, and a failed sed would pass for success.
 convert() {
-  if LC_ALL=C grep -qF -f "$work/refuse" -- "$1"; then
-    cp -- "$1" "$2"
-    return 4
-  fi
+  local rc=0 last='' size
+  LC_ALL=C grep -qF -f "$work/refuse" -- "$1" || rc=$?
+  case $rc in
+    0) cp -- "$1" "$2" || return 1; return 4 ;;
+    1) ;;
+    *) return 1 ;;
+  esac
   # A sed may end its output with a newline the input lacked, so give the
   # input one and take it off again afterwards.
-  cp -- "$1" "$work/sed-in"
-  local last='' size
-  [[ ! -s $1 ]] || last=$(tail -c 1 -- "$1" | od -An -tx1 | tr -d ' \n')
-  [[ -z $last || $last == 0a ]] || printf '\n' >>"$work/sed-in"
-  LC_ALL=C sed -f "$work/map.sed" "$work/sed-in" >"$work/sed-out"
+  cp -- "$1" "$work/sed-in" || return 1
+  if [[ -s $1 ]]; then last=$(tail -c 1 -- "$1" | od -An -tx1 | tr -d ' \n') || return 1; fi
+  if [[ -n $last && $last != 0a ]]; then printf '\n' >>"$work/sed-in" || return 1; fi
+  LC_ALL=C sed -f "$work/map.sed" "$work/sed-in" >"$work/sed-out" || return 1
   if [[ -n $last && $last != 0a ]]; then
-    size=$(wc -c <"$work/sed-out" | tr -d ' ')
-    head -c "$((size - 1))" "$work/sed-out" >"$2"
+    size=$(wc -c <"$work/sed-out" | tr -d ' ') || return 1
+    head -c "$((size - 1))" "$work/sed-out" >"$2" || return 1
   else
-    cp -- "$work/sed-out" "$2"
+    cp -- "$work/sed-out" "$2" || return 1
   fi
-  if cmp -s -- "$1" "$2"; then return 3; fi
-  return 0
+  rc=0
+  cmp -s -- "$1" "$2" || rc=$?
+  case $rc in
+    0) return 3 ;;
+    1) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 message() { # STATUS [HINT]
   case $1 in
     0) echo "Converted to Unicode. Paste it where you like." ;;
+    1) echo "Something went wrong while converting, so nothing was changed." ;;
     3) echo "Nothing to convert: the text has none of VedaBase's old diacritics.${2:+ $2}" ;;
     4) echo "Not converted: the text already has Unicode diacritics (such as ā or ṣ), so it is not fresh from VedaBase.${2:+ $2}" ;;
   esac
@@ -122,32 +137,64 @@ clip_put() {
 }
 
 # The text converted last is remembered (as a checksum, not the text): a
-# second press would otherwise turn the ñ of yajña into ṣ.
+# second press would otherwise turn the ñ of yajña into ṣ. It is written
+# before the clipboard changes, and a lock beside it lets one press at a time
+# read, convert and publish, so a second press sees either the old text or
+# the new one with its checksum.
 if [[ $(uname -s) == Darwin ]]; then
   last=$HOME/Library/Caches/VedaBase/unicode-last
 else
   last=${XDG_CACHE_HOME:-$HOME/.cache}/vedabase/unicode-last
 fi
+lock=$last.lock
+
+# mkdir is atomic; a lock older than a press could take (5 s) was left by one
+# that died, and is broken.
+take_lock() {
+  local i=0
+  mkdir -p -- "$(dirname -- "$last")" 2>/dev/null || return 1
+  until mkdir -- "$lock" 2>/dev/null; do
+    i=$((i + 1))
+    if ((i == 50)); then rm -rf -- "$lock"; fi
+    ((i < 60)) || return 1
+    sleep 0.1
+  done
+  locked=1
+}
+drop_lock() {
+  if ((locked)); then rmdir -- "$lock" 2>/dev/null || :; fi
+  locked=0
+}
+
+# Leaves the clipboard as it was, says why, and ends with STATUS.
+give_up() { # STATUS MESSAGE SECONDS
+  drop_lock
+  note "$2" "$3"
+  exit "$1"
+}
 
 convert_clipboard() {
   local status=0 text=''
   pick_clipboard
+  take_lock || give_up 1 "Could not use $(dirname -- "$last") to remember the converted text, so nothing was changed." 0
   # Windows programs read text up to its first NUL. Folio's copy, as Wine
   # hands it over, goes on past one with whatever followed in Folio's buffer.
   clip_get >"$work/raw" || :
   IFS= read -r -d '' text <"$work/raw" || :
-  printf '%s' "$text" >"$work/in"
+  printf '%s' "$text" >"$work/in" || give_up 1 "$(message 1)" 0
   if [[ -s $work/in && -s $last && $(cksum <"$work/in") == "$(cat -- "$last")" ]]; then
-    note "Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert." 6
-    exit 4
+    give_up 4 "Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert." 6
   fi
   convert "$work/in" "$work/out" || status=$?
-  if [[ $status != 0 ]]; then
-    note "$(message "$status" 'Copy some text in VedaBase, then convert.')" 6
-    exit "$status"
-  fi
-  clip_put <"$work/out" || { note "Could not put the converted text on the clipboard." 0; exit 1; }
-  { mkdir -p -- "$(dirname -- "$last")" && cksum <"$work/out" >"$last"; } 2>/dev/null || true
+  case $status in
+    0) ;;
+    1) give_up 1 "$(message 1)" 0 ;;
+    *) give_up "$status" "$(message "$status" 'Copy some text in VedaBase, then convert.')" 6 ;;
+  esac
+  { cksum <"$work/out" >"$last.new" && mv -f -- "$last.new" "$last"; } 2>/dev/null ||
+    give_up 1 "Could not remember the converted text in $(dirname -- "$last"), so nothing was changed." 0
+  clip_put <"$work/out" || give_up 1 "Could not put the converted text on the clipboard." 0
+  drop_lock
   note "$(message 0)" 2
 }
 
@@ -160,7 +207,7 @@ case ${1:-} in
     cat >"$work/in"
     status=0
     convert "$work/in" "$work/out" || status=$?
-    cat -- "$work/out"
+    [[ $status == 1 ]] || cat -- "$work/out"
     [[ $status == 0 ]] || message "$status" >&2
     exit "$status" ;;
   *)

@@ -110,38 +110,54 @@ function Get-ClipboardText {
 }
 
 # The last result is remembered (as a hash, not the text), so pressing the
-# shortcut twice does not convert the converted text again.
+# shortcut twice does not convert the converted text again. It is written
+# before the clipboard changes, and a mutex lets one press at a time read,
+# convert and publish (two quick presses run two of these scripts), so a
+# second press sees either the old text or the new one with its hash.
 $LastFile = Join-Path (Join-Path $env:LOCALAPPDATA 'VedaBase') 'unicode-last.txt'
 function Get-Hash([string]$Text) {
   $sha = [System.Security.Cryptography.SHA256]::Create()
   try { return [BitConverter]::ToString($sha.ComputeHash($Utf8.GetBytes($Text))) } finally { $sha.Dispose() }
 }
 
+$Mutex = New-Object System.Threading.Mutex($false, 'Local\VedaBaseUnicode')
+$owned = $false
+$status = 1
+$note = @('Another conversion is still running. Try again in a moment.', 6, 48)
 try {
-  $text = Get-ClipboardText
-  # Text ends at its first NUL, as Windows programs read it; under Wine,
-  # Folio's copy goes on past one with leftovers from its buffer.
-  $nul = $text.IndexOf([char]0)
-  if ($nul -ge 0) { $text = $text.Substring(0, $nul) }
-  $last = ''
-  if (Test-Path -LiteralPath $LastFile) { $last = [System.IO.File]::ReadAllText($LastFile).Trim() }
-  if ($text -ne '' -and $last -eq (Get-Hash $text)) {
-    Show-Note 'Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert.' 6 48
-    exit 4
+  try { $owned = $Mutex.WaitOne(6000) } catch [System.Threading.AbandonedMutexException] { $owned = $true }
+  if ($owned) {
+    $text = Get-ClipboardText
+    # Text ends at its first NUL, as Windows programs read it (Folio's copy
+    # has leftovers from its buffer after one).
+    $nul = $text.IndexOf([char]0)
+    if ($nul -ge 0) { $text = $text.Substring(0, $nul) }
+    $last = ''
+    if (Test-Path -LiteralPath $LastFile) { $last = [System.IO.File]::ReadAllText($LastFile).Trim() }
+    if ($text -ne '' -and $last -eq (Get-Hash $text)) {
+      $status = 4
+      $note = @('Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert.', 6, 48)
+    } else {
+      $result = Convert-VedaBaseText $text
+      if ($result[0] -ne 0) {
+        $status = $result[0]
+        $note = @((Get-Message $result[0]), 6, 48)
+      } else {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $LastFile) | Out-Null
+        [System.IO.File]::WriteAllText($LastFile, (Get-Hash $result[1]))
+        # Copied into the clipboard (true), so it stays after this script
+        # ends; 20 tries 100 ms apart while another program holds it.
+        [System.Windows.Forms.Clipboard]::SetDataObject($result[1], $true, 20, 100)
+        $status = 0
+        $note = @((Get-Message 0), 2, 64)
+      }
+    }
   }
-  $result = Convert-VedaBaseText $text
-  if ($result[0] -ne 0) {
-    Show-Note (Get-Message $result[0]) 6 48
-    exit $result[0]
-  }
-  # Copied into the clipboard (true), so it stays after this script ends;
-  # 20 tries 100 ms apart while another program holds it.
-  [System.Windows.Forms.Clipboard]::SetDataObject($result[1], $true, 20, 100)
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $LastFile) | Out-Null
-  [System.IO.File]::WriteAllText($LastFile, (Get-Hash $result[1]))
-  Show-Note (Get-Message 0) 2 64
-  exit 0
 } catch {
-  Show-Note ("Could not convert: " + $_.Exception.Message) 0 16
-  exit 1
+  $status = 1
+  $note = @(('Could not convert, so nothing was changed: ' + $_.Exception.Message), 0, 16)
+} finally {
+  if ($owned) { $Mutex.ReleaseMutex() }
 }
+Show-Note $note[0] $note[1] $note[2]
+exit $status

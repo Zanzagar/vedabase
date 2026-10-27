@@ -88,7 +88,9 @@ reinstalling without signing out of Windows.
   at once or only after signing out and back in. Note whether a console
   window flashes, whether the small window's text shows ā and ṣ (not
   "Ä" and other odd letters), and which program has the focus after it
-  closes. Try the desktop icon too, and both again in a second account.
+  closes. Press Ctrl+Alt+U twice quickly after copying *yajña* out of a
+  verse: the result must read *yajña*, never *yajṣa*. Try the desktop icon
+  too, and both again in a second account.
   `C:\Program Files\VedaBase-Setup` holds `vedabase-unicode.ps1` and
   `balaram-unicode.tsv`.
 

@@ -52,6 +52,10 @@ mkdir -p "$B/bsd-sed"
   printf '%s\n' 'out=${out%x}' 'printf "%s" "$out"' '[[ -z $out || $out == *$'"'"'\n'"'"' ]] || printf "\n"'
 } >"$B/bsd-sed/sed"
 chmod +x "$B/bsd-sed/sed"
+# And a sed that fails, for the error paths.
+mkdir -p "$B/fail-sed"
+printf '#!/bin/sh\nexit 1\n' >"$B/fail-sed/sed"
+chmod +x "$B/fail-sed/sed"
 
 corpus() {
   converts 'Kåñëa' 'Kṛṣṇa'
@@ -77,6 +81,10 @@ corpus() {
   if [[ $impl == bash* ]]; then
     BSD_SED=1 converts $'Kåñëa\r\nRäma\r\n' $'Kṛṣṇa\r\nRāma\r\n'
     BSD_SED=1 converts 'Kåñëa' 'Kṛṣṇa'
+    # A step that fails must not pass for a conversion.
+    printf 'Kåñëa' >"$B/in"
+    PATH=$B/fail-sed:$PATH run "$impl" "$B/in" "$B/out" && status=0 || status=$?
+    check "[$impl] with sed failing: status 1 and no text on stdout" test "$status" -eq 1 -a ! -s "$B/out"
   fi
 
   # Nothing to convert: status 3, the text as it was.
@@ -154,6 +162,10 @@ clipboard() {
   for t in Xtigervnc xauth xclip; do
     command -v "$t" >/dev/null || { echo "SKIP  the clipboard: no $t (VB_TEST_TOOLS=$VB_TEST_TOOLS)"; return; }
   done
+  # A stand-in xclip that publishes, then lingers 2 s.
+  mkdir -p "$B/slow-xclip"
+  printf '#!/bin/sh\n%s "$@" || exit\ncase " $* " in *" -i "*) sleep 2 ;; esac\n' "$(command -v xclip)" >"$B/slow-xclip/xclip"
+  chmod +x "$B/slow-xclip/xclip"
   start_display "$B/x" || { fail "a private X display starts"; return; }
   # No desktop notifications from here, and the remembered result in $B.
   unset WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS
@@ -183,6 +195,22 @@ clipboard() {
   press
   got >"$B/got"; printf 'kaumāraṁ' >"$B/want"
   check "Folio's copy, NUL and leftovers included, becomes just 'kaumāraṁ'" cmp -s "$B/got" "$B/want"
+
+  # A step that fails leaves the clipboard alone and says so (status 1).
+  put 'Kåñëa'; PATH=$B/fail-sed:$PATH press
+  check "with sed failing, the clipboard keeps 'Kåñëa' (status 1, not a false success)" test "$(got)" = 'Kåñëa' -a "$status" -eq 1
+  # Converting without remembering the result would let the next press make
+  # yajṣa of yajña: with nowhere to remember it, nothing changes (status 1).
+  mkdir -p "$B/ro"; chmod 500 "$B/ro"
+  put 'yajïa'; XDG_CACHE_HOME=$B/ro/cache press
+  check "with the cache unwritable, the clipboard keeps 'yajïa' (status 1)" test "$(got)" = 'yajïa' -a "$status" -eq 1
+  chmod 700 "$B/ro"
+  # Two presses at once: an xclip that is slow to come back holds the first
+  # press between publishing and finishing while the second one runs.
+  put 'yajïa'
+  PATH=$B/slow-xclip:$PATH press &
+  sleep 0.7; press; wait "$!"
+  check "two presses at once leave 'yajña', never 'yajṣa'" test "$(got)" = 'yajña'
   stop_display
 }
 clipboard
