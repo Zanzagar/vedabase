@@ -22,6 +22,9 @@ Usage: vedabase [COMMAND] [INFOBASE]
   doctor            check the installation
   backup [FILE]     save the prefix (program, infobases, your notes) as .tar.gz
   where             print where everything lives
+  unicode [-]       turn text copied out of VedaBase into Unicode, on the
+                    clipboard (the browser viewer's, when it runs and there is
+                    no desktop); with -, standard input to standard output
 
 INFOBASE is vedabase (default), vanibase, help (Folio's own help infobase),
 or folio (Folio Views with no infobase; use File > Open). Without a COMMAND,
@@ -195,6 +198,17 @@ cmd_backup() {
   vb_say "Restore elsewhere with: install.sh --restore $out"
 }
 
+# The converter is bin/vedabase-unicode, which the Mac app runs too. It finds
+# xclip among the tools install.sh unpacked. Without a desktop, the clipboard
+# is the browser viewer's: noVNC's clipboard panel shows what it holds.
+cmd_unicode() {
+  vb_env
+  if [[ ${1:-} != - && -z ${DISPLAY:-}${WAYLAND_DISPLAY:-} ]] && web_running; then
+    vb_display_use web
+  fi
+  exec "$VB_REPO/bin/vedabase-unicode" "$@"
+}
+
 cmd_where() {
   cat <<EOF
 home      $VB_HOME
@@ -209,7 +223,7 @@ main() {
   local sub=${1:-}
   case $sub in
     -h | --help | help) usage ;;
-    open | web | stop | status | doctor | backup | where)
+    open | web | stop | status | doctor | backup | where | unicode)
       shift
       "cmd_$sub" "$@" ;;
     vedabase | vanibase | folio) # "vedabase vanibase" reads naturally too

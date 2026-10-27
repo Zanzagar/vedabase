@@ -160,7 +160,7 @@ if [[ ! -f $vani || ! -f $VB_APP_DIR/Nfo/VaniBase_25.sdw || $(vb_size "$vani") !
 fi
 
 # --- apps for the Dock and Launchpad ---------------------------------------------
-make_app() { # NAME BUNDLE_ID WINDOWS_PATH_OF_SHADOW_FILE
+make_app() { # NAME BUNDLE_ID; the app's launch script comes on standard input
   local app="$MAC_APPS/$1.app"
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
   cat >"$app/Contents/Info.plist" <<EOF
@@ -179,19 +179,28 @@ make_app() { # NAME BUNDLE_ID WINDOWS_PATH_OF_SHADOW_FILE
 </dict>
 </plist>
 EOF
-  {
-    echo '#!/bin/bash'
-    printf 'export WINEPREFIX=%q WINEDEBUG=-all WINEDLLOVERRIDES=%q\n' "$VB_PREFIX" "$WINEDLLOVERRIDES"
-    printf 'cd %q || exit 1\n' "$VB_APP_DIR"
-    printf 'exec %q %q %q\n' "$VB_WINE_DIR/bin/wine" "$VB_APP_WIN\\Views.exe" "$3"
-  } >"$app/Contents/MacOS/launch"
+  cat >"$app/Contents/MacOS/launch"
   chmod +x "$app/Contents/MacOS/launch"
   sips -s format icns "$VB_APP_DIR/vedabase.ico" --out "$app/Contents/Resources/vedabase.icns" >/dev/null 2>&1 ||
     vb_warn "could not convert the icon for $1"
 }
+infobase_launch() { # WINDOWS_PATH_OF_SHADOW_FILE
+  echo '#!/bin/bash'
+  printf 'export WINEPREFIX=%q WINEDEBUG=-all WINEDLLOVERRIDES=%q\n' "$VB_PREFIX" "$WINEDLLOVERRIDES"
+  printf 'cd %q || exit 1\n' "$VB_APP_DIR"
+  printf 'exec %q %q %q\n' "$VB_WINE_DIR/bin/wine" "$VB_APP_WIN\\Views.exe" "$1"
+}
 mkdir -p "$MAC_APPS"
-make_app 'VedaBase 25' org.vedabase.vedabase25 "$VB_APP_WIN\\Nfo\\Bhaktivedanta Vedabase 2003.sdw"
-make_app 'VaniBase 25' org.vedabase.vanibase25 "$VB_APP_WIN\\Nfo\\VaniBase_25.sdw"
+infobase_launch "$VB_APP_WIN\\Nfo\\Bhaktivedanta Vedabase 2003.sdw" | make_app 'VedaBase 25' org.vedabase.vedabase25
+infobase_launch "$VB_APP_WIN\\Nfo\\VaniBase_25.sdw" | make_app 'VaniBase 25' org.vedabase.vanibase25
+# Copy text in VedaBase, then click this: the clipboard then holds Unicode. The
+# converter runs from a copy here, so deleting the unzipped folder is fine.
+rm -rf "$VB_HOME/app"
+mkdir -p "$VB_HOME/app/bin" "$VB_HOME/app/lib"
+cp "$VB_REPO/bin/vedabase-unicode" "$VB_HOME/app/bin/"
+cp "$VB_REPO/lib/balaram-unicode.tsv" "$VB_HOME/app/lib/"
+printf '#!/bin/bash\nexec /bin/bash %q\n' "$VB_HOME/app/bin/vedabase-unicode" | make_app 'VedaBase Unicode' org.vedabase.unicode
 
 vb_say "Done. VedaBase 25 and VaniBase 25 are in $MAC_APPS (drag them to the Dock if you like)."
+vb_say "Text copied out of VedaBase turns into Unicode when you open \"VedaBase Unicode\" there."
 open "$MAC_APPS/VedaBase 25.app"

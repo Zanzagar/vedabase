@@ -18,15 +18,17 @@ VB_TEST_WINE=${VB_TEST_WINE:-$_vb_home/wine/wine-11.0-amd64-wow64}
 _vb_cfg=${XDG_CONFIG_HOME:-$HOME/.config}/vedabase/home
 _vb_apps=${XDG_DATA_HOME:-$HOME/.local/share}/applications
 _vb_user_state() {
-  cat -- "$_vb_cfg" "$_vb_apps/vedabase.desktop" "$_vb_apps/vanibase.desktop" \
-    /usr/share/applications/vedabase.desktop /usr/share/applications/vanibase.desktop 2>/dev/null | cksum
+  cat -- "$_vb_cfg" "$_vb_apps/vedabase.desktop" "$_vb_apps/vanibase.desktop" "$_vb_apps/vedabase-unicode.desktop" \
+    /usr/share/applications/vedabase.desktop /usr/share/applications/vanibase.desktop \
+    /usr/share/applications/vedabase-unicode.desktop 2>/dev/null | cksum
 }
 _vb_user_before=$(_vb_user_state)
 
 # Point every per-user location of the installers at H (the test's scratch
 # HOME), so nothing reaches yours even where XDG_* are set.
 isolate() { # H
-  export XDG_CONFIG_HOME=$1/.config XDG_DATA_HOME=$1/.local/share
+  # The cache holds what 'vedabase unicode' converted last.
+  export XDG_CONFIG_HOME=$1/.config XDG_DATA_HOME=$1/.local/share XDG_CACHE_HOME=$1/.cache
   # WSL: install.sh would copy its menu entries to /usr/share/applications.
   unset VEDABASE_HOME VEDABASE_SOURCE VEDABASE_INSTALL_DISPLAY WSL_DISTRO_NAME
 }

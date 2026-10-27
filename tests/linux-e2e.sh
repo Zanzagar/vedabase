@@ -20,18 +20,38 @@ check "the prefix is private (0700)" test "$(stat -c %a "$VH/prefix")" = 700
 check "the install is stamped" test -f "$VH/prefix/.vedabase-installed"
 check "the installer's staging links are gone" test ! -L "$VH/prefix/drive_c/Install.exe"
 check "no hidden display is left running" test "$(home_xvncs "$VH")" -eq 0
+check "the menu has VedaBase Unicode" grep -qxF "Exec=$H/.local/bin/vedabase unicode" "$H/.local/share/applications/vedabase-unicode.desktop"
+check "the install has xclip for it" test -x "$VH/tools/root/usr/bin/xclip" -o -n "$(command -v xclip)"
+out=$(printf 'Kåñëa' | run "$H/.local/bin/vedabase" unicode -)
+check "'vedabase unicode -' converts, from the installed copy" test "$out" = 'Kṛṣṇa'
 
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web.out" 2>&1
 check "vedabase web starts" test $? -eq 0
 url=$(grep -o "http://localhost:$PORT/vnc.html[^ ]*" "$B/web.out" | head -n1)
 check "it prints the browser link" test -n "$url"
 check "the web display has no failed-login lockout" grep -q -- '-UseBlacklist=0' "/proc/$(cat "$VH/run/web/xvnc.pid")/cmdline"
+# With no desktop, 'vedabase unicode' converts the browser viewer's clipboard.
+web_clip() { # xclip ARGS... on the browser viewer's display
+  DISPLAY=$(<"$VH/run/web/display") XAUTHORITY=$VH/run/web/xauth PATH=$VH/tools/root/usr/bin:$PATH \
+    LD_LIBRARY_PATH=$VH/tools/root/usr/lib/x86_64-linux-gnu xclip -selection clipboard -t UTF8_STRING "$@"
+}
+web_unicode() { # TEXT: put it on that clipboard, then convert it as a web user would
+  printf '%s' "$1" | web_clip -i >/dev/null 2>&1
+  env -u DISPLAY -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$B" \
+    HOME="$H" "$H/.local/bin/vedabase" unicode >>"$B/unicode-web.log" 2>&1
+}
+web_unicode 'Çré Kåñëa'
+check "with no desktop, 'vedabase unicode' converts the browser viewer's clipboard" test "$(web_clip -o 2>/dev/null)" = 'Śrī Kṛṣṇa'
 if [[ -n ${CHROME_EXE:-} ]]; then
   sleep 8
   python3 "$TESTS/novnc/lockout.py" "$url" "$B/web-after-wrong.png" >"$B/lockout.log" 2>&1
   check "six wrong passwords, then the right one connects (log: $B/lockout.log)" test $? -eq 0
   python3 "$TESTS/novnc/search.py" "$url" "$B/web-typed.png" >"$B/search.log" 2>&1
   check "a search typed through the browser runs (look at $B/web-typed.png)" test $? -eq 0
+  export -f web_clip web_unicode
+  export VH H B
+  python3 "$TESTS/novnc/clipboard.py" "$url" 'Gaṅgā jñāna' -- bash -c "web_unicode 'Gaìgä jïäna'" >"$B/clipboard.log" 2>&1
+  check "noVNC's clipboard panel receives the converted text, Unicode intact (log: $B/clipboard.log)" test $? -eq 0
 else
   echo "SKIP  browser checks (set CHROME_EXE to a Chromium for Playwright)"
 fi

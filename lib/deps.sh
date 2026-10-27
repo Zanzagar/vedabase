@@ -11,6 +11,8 @@ VB_PKGS_DISPLAY=(tigervnc-standalone-server tigervnc-tools xdotool xauth)
 # The browser viewer. Only the files are needed: novnc's nodejs and numpy
 # dependencies are not, so these are unpacked without their dependencies.
 VB_PKGS_WEB=(novnc python3-websockify)
+# The clipboard, for 'vedabase unicode' (on desktops and in the browser viewer).
+VB_PKGS_CLIP=(xclip)
 
 vb_pkg_installed() { [[ $(dpkg-query -W -f='${Status}' "$1" 2>/dev/null) == *'ok installed' ]]; }
 vb_pkg_unpacked() { [[ -e $VB_HOME/tools/stamps/$1 ]]; }

@@ -128,6 +128,7 @@ if [[ -z $restore ]] && { ((reinstall)) || ! vb_installed; }; then
 fi
 
 vb_ensure_pkgs deps "${VB_PKGS_WINE[@]}"
+vb_ensure_pkgs deps "${VB_PKGS_CLIP[@]}"
 # Private displays: for running Install.exe unseen, and for 'vedabase web'.
 if vb_can_run_xvnc; then
   vb_ensure_pkgs deps "${VB_PKGS_DISPLAY[@]}"
@@ -259,13 +260,24 @@ if ((vanibase)); then
 else
   rm -f -- "$VB_APPS_DIR/vanibase.desktop"
 fi
+# Copy in VedaBase, then this: the clipboard then holds Unicode, ready to paste.
+cat >"$VB_APPS_DIR/vedabase-unicode.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=VedaBase Unicode
+Comment=Turn text copied out of VedaBase into Unicode, ready to paste anywhere
+Exec=$VB_BIN_LINK unicode
+Icon=$VB_HOME/icons/vedabase.png
+Terminal=false
+Categories=Education;Literature;Utility;
+EOF
 if command -v update-desktop-database >/dev/null; then
   update-desktop-database -q "$VB_APPS_DIR" 2>/dev/null || true
 fi
 # WSLg mirrors menu entries into the Windows Start menu, but only from system
 # folders such as /usr/share/applications, never from ~/.local/share.
 if [[ -n ${WSL_DISTRO_NAME:-} ]]; then
-  wsl_entries=("$VB_APPS_DIR/vedabase.desktop")
+  wsl_entries=("$VB_APPS_DIR/vedabase.desktop" "$VB_APPS_DIR/vedabase-unicode.desktop")
   ((vanibase)) && wsl_entries+=("$VB_APPS_DIR/vanibase.desktop")
   if sudo -n true 2>/dev/null; then
     sudo install -m 0644 "${wsl_entries[@]}" /usr/share/applications/
@@ -282,6 +294,9 @@ Done. Open it with:
   vedabase              (a window here if you have a display, else the browser viewer)
   vedabase vanibase     (VaniBase 25)
   vedabase web          (headless: prints the SSH tunnel and browser link)
+Text copied out of VedaBase turns into Unicode with "VedaBase Unicode" in the
+menu (give it a keyboard shortcut in your desktop's settings), or:
+  vedabase unicode
 EOF
 if ! command -v vedabase >/dev/null; then
   vb_warn "the 'vedabase' command works in new terminals after you log out and back in; until then use $VB_BIN_LINK"

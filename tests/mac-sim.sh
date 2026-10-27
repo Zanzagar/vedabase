@@ -23,7 +23,10 @@ mkdir -p "$R" && ln -s "$VB_TEST_WINE" "$R/wine"
 printf '#!/bin/bash\ncase "${1:-}" in -s) echo Darwin ;; -m) echo x86_64 ;; *) /usr/bin/uname "$@" ;; esac\n' >"$S/uname"
 printf '#!/bin/bash\necho 15.1\n' >"$S/sw_vers"
 printf '#!/bin/bash\nexit 0\n' >"$S/caffeinate"
-for t in open sips xattr; do printf '#!/bin/bash\necho "%s $*" >>"%s/calls.log"\n' "$t" "$B" >"$S/$t"; done
+for t in open sips xattr osascript; do printf '#!/bin/bash\necho "%s $*" >>"%s/calls.log"\n' "$t" "$B" >"$S/$t"; done
+# The pasteboard is a file here.
+printf '#!/bin/bash\ncat -- "%s/pasteboard" 2>/dev/null || true\n' "$B" >"$S/pbpaste"
+printf '#!/bin/bash\ncat >"%s/pasteboard"\n' "$B" >"$S/pbcopy"
 chmod +x "$S"/*
 
 export PATH=$VB_TEST_TOOLS/usr/bin:$PATH LD_LIBRARY_PATH=$VB_TEST_TOOLS/usr/lib/x86_64-linux-gnu
@@ -79,6 +82,21 @@ for app in 'VedaBase 25' 'VaniBase 25'; do
   check "$app.app has its Info.plist and launcher" test -f "$H/Applications/$app.app/Contents/Info.plist" -a -x "$H/Applications/$app.app/Contents/MacOS/launch"
 done
 check "it opens VedaBase 25 at the end" grep -q 'open .*VedaBase 25.app' "$B/calls.log"
+
+# VedaBase Unicode: copy in VedaBase, click the app, and the pasteboard holds Unicode.
+U="$H/Applications/VedaBase Unicode.app/Contents/MacOS/launch"
+check "VedaBase Unicode.app has its Info.plist and launcher" test -f "$H/Applications/VedaBase Unicode.app/Contents/Info.plist" -a -x "$U"
+check "  ... which runs the converter's copy in the VedaBase home" grep -qF "$(printf '%q' "$VBH/app/bin/vedabase-unicode")" "$U"
+printf 'Çré Kåñëa' >"$B/pasteboard"
+env HOME="$H" PATH="$S:$PATH" bash "$U" >"$B/unicode-app.log" 2>&1
+check "clicking it turns the pasteboard's 'Çré Kåñëa' into 'Śrī Kṛṣṇa'" test "$(cat "$B/pasteboard")" = 'Śrī Kṛṣṇa'
+check "  ... and a dialog says so" grep -q 'osascript .*Converted to Unicode' "$B/calls.log"
+check "  ... and it remembers what it converted, in ~/Library/Caches" test -s "$H/Library/Caches/VedaBase/unicode-last"
+printf 'yajïa' >"$B/pasteboard"
+env HOME="$H" PATH="$S:$PATH" "$VB_TEST_BASH32" "$VBH/app/bin/vedabase-unicode" >>"$B/unicode-app.log" 2>&1
+check "under bash 3.2 too: 'yajïa' becomes 'yajña'" test "$(cat "$B/pasteboard")" = 'yajña'
+env HOME="$H" PATH="$S:$PATH" "$VB_TEST_BASH32" "$VBH/app/bin/vedabase-unicode" >>"$B/unicode-app.log" 2>&1
+check "  ... and a second click does not make 'yajṣa' of it (status $?)" test "$(cat "$B/pasteboard")" = 'yajña'
 env HOME="$H" PATH="$S:$PATH" "${srcenv[@]}" "$VB_TEST_BASH32" mac/install.sh >"$B/rerun.log" 2>&1
 check "a re-run on the finished install succeeds" test $? -eq 0
 kill "$xpid" 2>/dev/null

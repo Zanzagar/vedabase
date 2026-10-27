@@ -208,16 +208,20 @@ function Get-DriveFile($Row, [string]$Path) {
     'wait a few hours and run the installer again. Check the internet connection and free disk space too.')
 }
 
-function New-Shortcut([string]$Path, [string]$Arguments) {
+function New-Shortcut([string]$Path, [string]$Arguments, [string]$Target = '', [string]$Hotkey = '',
+  [int]$WindowStyle = 1, [string]$Description = '') {
   # WScript.Shell belongs to Windows Script Host, which Microsoft is phasing
   # out with VBScript; a missing shortcut must not stop the install.
   try {
     $shell = New-Object -ComObject WScript.Shell
     $link = $shell.CreateShortcut($Path)
-    $link.TargetPath = Join-Path $AppDir 'Views.exe'
+    if ($Target) { $link.TargetPath = $Target } else { $link.TargetPath = Join-Path $AppDir 'Views.exe' }
     $link.Arguments = $Arguments
     $link.WorkingDirectory = $AppDir
     $link.IconLocation = (Join-Path $AppDir 'vedabase.ico') + ',0'
+    $link.WindowStyle = $WindowStyle
+    if ($Hotkey) { $link.Hotkey = $Hotkey }
+    if ($Description) { $link.Description = $Description }
     $link.Save()
   } catch {
     Warn "Could not create the shortcut $Path ($($_.Exception.Message))"
@@ -312,6 +316,26 @@ function Complete-Install([switch]$SkipFonts) {
 
   # Fonts only once the installer is done, so this never races its own copying.
   if (-not $SkipFonts) { Register-Fonts }
+}
+
+# Text copied out of VedaBase reads wrongly elsewhere, since its fonts draw
+# Sanskrit letters in place of ordinary ones; vedabase-unicode.ps1 puts the
+# Unicode letters on the clipboard instead. It and its table go into the
+# cache, which only administrators can change, since the shortcuts run them in
+# every account. The Start-menu shortcut has the key: Windows takes a
+# shortcut's key from the Desktop and the Start menu, and two would compete.
+function Install-UnicodeConverter {
+  $script = Join-Path $Cache 'vedabase-unicode.ps1'
+  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'vedabase-unicode.ps1') -Destination $script -Force
+  Copy-Item -LiteralPath (Join-Path $Root 'lib\balaram-unicode.tsv') -Destination $Cache -Force
+  Unblock-File -LiteralPath $script, (Join-Path $Cache 'balaram-unicode.tsv') -ErrorAction SilentlyContinue
+  $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+  $arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$script`""
+  $about = 'Turns text copied out of VedaBase into Unicode, ready to paste anywhere'
+  $menu = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Bhaktivedanta VedaBase 2003"
+  New-Item -ItemType Directory -Force -Path $menu | Out-Null
+  New-Shortcut "$menu\VedaBase Unicode.lnk" $arguments -Target $ps -Hotkey 'Ctrl+Alt+U' -WindowStyle 7 -Description $about
+  New-Shortcut "$env:PUBLIC\Desktop\VedaBase Unicode.lnk" $arguments -Target $ps -WindowStyle 7 -Description $about
 }
 
 # Install.exe records the installing account's TEMP folder as Folio's swap and
@@ -555,6 +579,8 @@ function Invoke-MachinePhase {
   if (-not $installed) { Invoke-Wizard }
 
   Complete-Install
+  # An extra: if it cannot be set up, VedaBase itself still is.
+  try { Install-UnicodeConverter } catch { Warn "Could not set up VedaBase Unicode ($($_.Exception.Message))" }
   Set-SharedTemp
   Register-UserDefaults
   Move-DesktopIcon
@@ -581,6 +607,7 @@ function Invoke-FinishPhase {
 
   Say 'Done.'
   Write-Host '  Open "Bhaktivedanta VedaBase 2003" (VedaBase 25) or "VaniBase 25" from the desktop or the Start menu.'
+  Write-Host '  Text copied out of VedaBase turns into Unicode with Ctrl+Alt+U (or the "VedaBase Unicode" icon).'
   Write-Host '  If VedaBase ever freezes when closing (a known problem of this 2003 program on newer'
   Write-Host '  Windows), end it from Task Manager (Ctrl+Shift+Esc).'
   Stop-Log
