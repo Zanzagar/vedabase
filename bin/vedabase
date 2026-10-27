@@ -236,7 +236,8 @@ with_lock() { # ARGS...: this script again, with ARGS, under the lock
     return 0
   fi
   [[ -d $VB_HOME ]] || return 0
-  command -v flock >/dev/null || return 0 # util-linux; without it, no lock
+  command -v flock >/dev/null ||
+    vb_die "the flock command is missing; install it once with:  sudo apt-get install util-linux"
   mkdir -p "$VB_RUN"
   chmod 700 "$VB_RUN"
   VB_LOCKED=1 flock -o -w 60 -E 75 "$VB_RUN/lock" "$0" "$@" || rc=$?

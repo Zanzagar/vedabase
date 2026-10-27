@@ -69,7 +69,8 @@ done
 [[ $EUID -ne 0 ]] || vb_die "run install.sh as yourself, without sudo; it asks for sudo itself only if it has to"
 [[ $(uname -m) == x86_64 ]] || vb_die "needs an x86_64 Linux (this is $(uname -m))"
 missing_tools=()
-for t in curl:curl sha256sum:coreutils tar:tar xz:xz-utils python3:python3 pgrep:procps ps:procps ss:iproute2; do
+for t in curl:curl sha256sum:coreutils tar:tar xz:xz-utils python3:python3 pgrep:procps ps:procps ss:iproute2 \
+  flock:util-linux; do
   command -v "${t%%:*}" >/dev/null || missing_tools+=("${t#*:}")
 done
 ((${#missing_tools[@]} == 0)) ||
