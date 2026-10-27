@@ -147,6 +147,14 @@ A. ~~**Read the devotee's five files** (State, 2026-10-26) as data, the plain-te
    repository until the maintainer agrees, and so do their authors: the utility's author
    for the zip; for the other four, ~~who wrote them is not stated (ask the devotee who sent
    them)~~ **► the private notes say who made them**.
+   <a id="unicode-converter"></a>**► Decided 2026-10-26 (the maintainer): a converter in all
+   three installers**, which turns text copied out of VedaBase into Unicode on the
+   clipboard: Windows a shortcut with a key (PowerShell), Linux `vedabase unicode`, the Mac
+   an app; tests at four seams (the shell filter under bash and bash 3.2, the PowerShell
+   twin and the two agreeing byte for byte, the Linux clipboard, the Mac app in the
+   simulation). **The table it needs enters this repository only after the devotee who
+   shares the installers agrees**, so the work lives on the local branch
+   `unicode/converter` in journel's clone, unpushed until then.
 B. **The maintainer's call:** how the README ("If the download breaks", "What's next",
    the closing thanks) and `docs/sources.md` speak of the Drive folders' maintainer, given
    the news in the private notes. Ask the maintainer how it should read before changing
