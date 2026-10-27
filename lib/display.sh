@@ -146,12 +146,13 @@ vb_websockify_alive() {
 # the nudger owns an X selection, which the server frees when either goes
 # away, and a second one finding it taken leaves. Nothing finds it by PID or
 # lock file, and it ends with its display. On $DISPLAY: start one unless one
-# runs, and say so if none comes up within 3 s.
+# runs, and say so if none comes up within 3 s (each question to a display
+# that does not answer is cut off after a second).
 vb_nudger_ensure() {
-  local i
+  local end=$((SECONDS + 3))
   setsid python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 >>"$VB_RUN/web/nudge.log" 2>&1 </dev/null &
-  for i in {1..15}; do
-    python3 -I "$VB_REPO/lib/x11-nudge.py" running >/dev/null 2>&1 && return 0
+  while ((SECONDS < end)); do
+    timeout 1 python3 -I "$VB_REPO/lib/x11-nudge.py" running >/dev/null 2>&1 && return 0
     sleep 0.2
   done
   vb_warn "text copied in VedaBase will not reach the browser's clipboard panel: its helper did not start (see $VB_RUN/web/nudge.log)"

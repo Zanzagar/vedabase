@@ -143,6 +143,20 @@ sleep 1
 check "  ... which goes on once the held one ends" nudger_up
 check "  ... and the held one does end" test -z "$(for p in $held; do kill -0 "$p" 2>/dev/null && echo "$p"; done)"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# A display that stops answering (here its Xvnc held up with SIGSTOP) must not
+# hang 'vedabase web' run again: it says so, and still gives the link.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web7.out" 2>&1
+xvnc=$(cat "$VH/run/web/xvnc.pid")
+sleep 5 # Folio opening, so that the viewer counts as running
+kill -STOP "$xvnc"
+started=$SECONDS
+VEDABASE_WEB_PORT=$PORT timeout 60 env HOME="$H" "$H/.local/bin/vedabase" web >"$B/web-stalled.out" 2>&1
+took=$((SECONDS - started))
+kill -CONT "$xvnc"
+check "'vedabase web' facing a display that does not answer returns in time (${took} s)" test "$took" -le 15
+check "  ... says copies will not reach the clipboard panel" grep -q "clipboard panel" "$B/web-stalled.out"
+check "  ... and gives the link all the same" grep -q "localhost:$PORT/vnc.html" "$B/web-stalled.out"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 
 run "$H/.local/bin/vedabase" backup "$B/backup.tar.gz" >"$B/backup.log" 2>&1
 check "backup succeeds" test $? -eq 0

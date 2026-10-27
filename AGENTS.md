@@ -44,7 +44,8 @@ matters, with the static checks before every commit:
   and `windows/vedabase-unicode.ps1`.
 - **`tests/unicode.sh`:** the Unicode converter, no install needed; give it
   `VB_TEST_BASH32` and `VB_TEST_PWSH` (the archived `pwsh/root/pwsh`), or it
-  skips the bash 3.2 and Windows halves. The bash 3.2, ShellCheck
+  skips the bash 3.2 and Windows halves. **`tests/nudge.sh`:** the browser
+  viewer's nudger on a private display, no install needed. The bash 3.2, ShellCheck
   and PowerShell builds used on 2026-10-20 are archived in
   `/journel/s1/cjh5690/archive/vedabase/session-7f53bfb5-2026-10-19/scratchpad/`
   (`bash32/`, `sc/`, `pwsh/`).

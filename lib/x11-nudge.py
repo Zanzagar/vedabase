@@ -82,6 +82,18 @@ x.XPending.argtypes = [C.c_void_p]
 x.XNextEvent.argtypes = [C.c_void_p, C.POINTER(XEvent)]
 x.XConnectionNumber.argtypes = [C.c_void_p]
 
+ERROR_HANDLER = C.CFUNCTYPE(C.c_int, C.c_void_p, C.c_void_p)
+
+
+@ERROR_HANDLER
+def ignore_error(_display, _error):
+    # A requestor whose window is gone before our refusal arrives must not end
+    # us, as Xlib's own handler would. Losing the server is not an error here:
+    # Xlib's I/O error handler still ends the process then.
+    return 0
+
+
+x.XSetErrorHandler(ignore_error)
 d = x.XOpenDisplay(None)
 if not d:
     sys.exit(1)
@@ -111,25 +123,28 @@ if sys.argv[1] == "every":
         sys.exit(0)
     due = time.monotonic() + period
     while True:
+        # Events first, every time round: a flush can read them into Xlib's
+        # queue, where the socket no longer shows them. XPending also reads
+        # what came, and when the server has gone, Xlib ends this process.
+        while x.XPending(d):
+            x.XNextEvent(d, C.byref(ev))
+            if ev.type == 29:  # SelectionClear: another took over
+                sys.exit(0)
+            if ev.type == 30:  # SelectionRequest: there is nothing to give
+                req = ev.request
+                out = XEvent()
+                out.reply.type, out.reply.display, out.reply.requestor = 31, d, req.requestor
+                out.reply.selection, out.reply.target, out.reply.time = req.selection, req.target, req.time
+                x.XSendEvent(d, req.requestor, 0, 0, C.byref(out))
+                x.XFlush(d)
         left = due - time.monotonic()
         if left <= 0:
             nudge()
             due = time.monotonic() + period
-        # Readable when an event comes (one that every client gets, such as
-        # MappingNotify, or one for the selection), or when the server goes
-        # away: Xlib then ends this process.
-        elif select.select([fd], [], [], left)[0]:
-            while x.XPending(d):
-                x.XNextEvent(d, C.byref(ev))
-                if ev.type == 29:  # SelectionClear: another took over
-                    sys.exit(0)
-                if ev.type == 30:  # SelectionRequest: there is nothing to give
-                    req = ev.request
-                    out = XEvent()
-                    out.reply.type, out.reply.display, out.reply.requestor = 31, d, req.requestor
-                    out.reply.selection, out.reply.target, out.reply.time = req.selection, req.target, req.time
-                    x.XSendEvent(d, req.requestor, 0, 0, C.byref(out))
-                    x.XFlush(d)
+        else:
+            # Readable when an event comes (one that every client gets, such
+            # as MappingNotify, or one for the selection), or the server goes.
+            select.select([fd], [], [], left)
 
 # once: watch for a new owner before nudging, so that it cannot come unseen.
 event_base = C.c_int()
