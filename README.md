@@ -323,6 +323,11 @@ leaves the text alone and says so, because converting twice would turn the
 Formatting (bold, italics) is not kept, and Devanagari script does not
 convert: it comes out as Latin letters. [How it works](docs/how-it-works.md#text-copied-out-of-vedabase).
 
+VedaBase Unicode is new: it has been tested on Linux, but not yet on Windows
+or a real Mac, and on Linux, text copied out of VedaBase did not always reach
+the clipboard in tests. If it does not work for you, please tell whoever gave
+you this installer; the first reports will correct these steps.
+
 ## What the installers add
 
 Each installer runs the original installer, then takes care of these:

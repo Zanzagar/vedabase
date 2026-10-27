@@ -153,6 +153,10 @@ installer and only finishes the setup.
 
 None of these is known to fail; they simply have not been tried yet.
 
+- **VedaBase Unicode** (Ctrl+Alt+U), which the installer gained after this
+  test: it has not run on any Windows PC yet. Check 8 of
+  [testing.md](testing.md) says what to try.
+
 - Uninstalling VedaBase and installing it again with *Custom*, without
   signing out of Windows in between, using the newest installer. **Before you
   try this, copy your notes out of `C:\Bhaktivedanta VedaBase 2003\Nfo`** (the
