@@ -196,8 +196,9 @@ as you, with no root:
   display, so `vedabase stop` never has to find it by PID or lock file.
   `vedabase web` starts one whenever none owns the selection, also when the
   viewer is already running, and warns if none does 3 seconds later;
-  `vedabase stop` warns if the display still answers 5 seconds after it was
-  stopped.
+  `vedabase stop` warns if the display's Xvnc is still running 5 seconds
+  after it was stopped, whether it answers or not (one that hangs can do
+  neither).
 
 The Linux installer uses the same kind of private display, a separate `Xvnc`,
 so the wizard never appears on anyone's screen. Where `x11-xkb-utils` is

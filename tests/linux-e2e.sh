@@ -146,6 +146,21 @@ run "$H/.local/bin/vedabase" stop >"$B/stop-wrong-record.out" 2>&1
 check "behind a wrong PID record, 'vedabase stop' still ends the display" test "$(home_xvncs "$VH")" -eq 0
 check "  ... and leaves the process the record names alone, though it is called Xtigervnc" kill -0 "$namesake"
 kill "$namesake"; wait "$namesake" 2>/dev/null
+# A display that outlives 'vedabase stop' is reported, even one that does not
+# answer (here its Xvnc held up with SIGSTOP, so that it cannot act on the
+# signal), and the next viewer gets a nudger all the same.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-survivor.out" 2>&1
+survivor=$(cat "$VH/run/web/xvnc.pid") old_display=$(<"$VH/run/web/display")
+hold "$survivor"
+started=$SECONDS
+run "$H/.local/bin/vedabase" stop >"$B/stop-survivor.out" 2>&1
+echo "      (stop took $((SECONDS - started)) s)"
+check "a display that outlives stop is reported, though it does not answer" grep -q 'did not stop' "$B/stop-survivor.out"
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web4.out" 2>&1
+check "  ... and the next viewer gets a nudger of its own" nudger_up
+kill -CONT "$survivor"; sleep 1
+check "  ... while the survivor's ends with the survivor" test -z "$(nudgers "$old_display")"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # A nudger held up past the end of its display must not cost the next display
 # its own, even when the new display takes the old one's number.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1

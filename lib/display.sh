@@ -204,13 +204,13 @@ vb_web_stop() {
   rm -f -- "$VB_RUN/web/websockify.pid" # earlier versions kept one
   if [[ -s $VB_RUN/web/display ]]; then display=$(<"$VB_RUN/web/display"); fi
   vb_display_stop web
-  # The nudger ends with the display. A display that still answers 5 s later
-  # lives on (a dying one may take a connection and never reply: timeout).
-  [[ -n $display ]] || return 0
+  # The nudger ends with the display. An Xvnc of it still there 5 s later
+  # lives on, whether it answers or not (one held up or hung cannot act on
+  # the signal, nor reply to a question).
   for i in {1..25}; do
-    DISPLAY=$display XAUTHORITY=$VB_RUN/web/xauth timeout 2 xdotool getdisplaygeometry \
-      >/dev/null 2>&1 || return 0
+    pids=$(vb_display_pids web)
+    [[ -n $pids ]] || return 0
     sleep 0.2
   done
-  vb_warn "the browser viewer's display $display did not stop; see $VB_RUN/web/xvnc.log"
+  vb_warn "the browser viewer's display${display:+ $display} did not stop (Xtigervnc, PID $(printf '%s\n' "$pids" | paste -sd' ' -)); see $VB_RUN/web/xvnc.log"
 }
