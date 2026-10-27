@@ -462,11 +462,17 @@ browser viewer, a word copied with xdotool reached the X clipboard by itself,
 as `kaumäraà`, a NUL and leftovers, and converted to *kaumāraṁ*; a word
 copied through the browser showed in noVNC's clipboard panel as `kaumäraà`;
 on a private display with a window manager (openbox), three words copied in
-turn each converted at once. Before the nudges (*Wine 11.0 and the X
-clipboard*, above), a copy reached the browser viewer's clipboard only when
-something happened to wake Wine, in one session of five. Not verified: the
-converter on Windows or a real Mac, and copying out of Folio on a full Linux
-desktop (GNOME, KDE, Wayland) or in WSLg.
+turn each converted at once. Under GNOME Shell 46 as the window manager (X11,
+on the same kind of private display on a server), a word copied in Folio was
+not on the clipboard until another window took the focus, then arrived as
+`yauvanaà`; `vedabase unicode`, run without a change of focus as a keyboard
+shortcut runs it, converted the copy before it to *kaumāraṁ*. Before the
+nudges (*Wine 11.0 and the X clipboard*, above), a copy reached the browser
+viewer's clipboard only when something happened to wake Wine, in one session
+of five. Not verified: the converter on Windows or a real Mac, and copying out
+of Folio on a desktop someone logs in to, GNOME's Wayland session (nested on
+the server, GNOME Shell never started the Xwayland it starts on demand), KDE,
+or WSLg.
 
 **Not yet verified:** a real Mac; WineHQ bug 60494 on Apple Silicon; and on
 Windows: a second account, a standard user, an accepted restart, a note saved

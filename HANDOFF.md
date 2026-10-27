@@ -100,7 +100,8 @@ public repository sees it**).
   `unicode.sh` 199 checks, `nudge.sh` 13, `linux-e2e.sh` 85 (Chromium included),
   `interrupt.sh` 13 (it now polls, Open 4), `mac-sim.sh` 16, `rollback.sh` 9. The
   reviews, probes, test outputs and GNOME launchers are archived in
-  `session-68ae51a3-2026-10-27/`.
+  `session-68ae51a3-2026-10-27/`. Check 8 then ran under GNOME Shell 46 on X11
+  (Open F).
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -269,8 +270,16 @@ F. ~~**Copying text out of Folio under Wine** (found 2026-10-26).~~ **► Solved
    (`docs/how-it-works.md`, "Wine 11.0 and the X clipboard"); the hint is now verified
    (`linux-e2e.sh`). **Correction:** Chromium's Ctrl+C through noVNC does reach Folio
    (the 2146 and 2215 briefs' trap said it did not); its copy waited for the same
-   flush. Not tried: GNOME, KDE, Wayland sessions, WSLg, the Mac (Wine's Mac driver
-   has no such buffer, by its code).
+   flush. Not tried: ~~GNOME,~~ KDE, Wayland sessions, WSLg, the Mac (Wine's Mac driver
+   has no such buffer, by its code). **► 2026-10-27 (68ae51a3): GNOME Shell 46 as the X11
+   window manager on a private Xvnc display on journel, with Folio from the scratch
+   install: a word copied in Folio was not on the clipboard (owner none, reads empty;
+   later the previous text) until another window took the focus, then arrived as
+   `yauvanaà`; `vedabase unicode` with no change of focus converted the copy before it
+   to `kaumāraṁ`. GNOME Shell nested as a Wayland compositor started, but never the
+   Xwayland it starts on demand (no systemd user session there; mutter 46 has no
+   `autostart-xwayland`), so the Wayland half is still untried. Launchers, logs and
+   screenshots: the archive's `session-68ae51a3-2026-10-27/gnome/`.**
 G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw Ṝ, the
    table's letter, but every SCA face checked (ScaGoudy, ScaTimes: most of VedaBase's
    text) draws ü. Copied text has no font, so a ü typed in an SCA passage (a German

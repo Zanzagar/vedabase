@@ -39,10 +39,11 @@ time under a lock. Tested on journel only (Ubuntu 24.04). State: `HANDOFF.md`.
 3. **È (Open G) and the thanks (Open B):** both wait on the devotee, who has
    not written since 2026-10-22 (the bridge was current at 11:39 on
    2026-10-27).
-4. **A full Linux desktop:** GNOME Shell 46 runs as the window manager on a
-   private Xvnc display on journel (a probe; launchers in the archive's
-   `gnome/`); check 8 under it, X11 and then Wayland with Xwayland, is the next
-   step there, before a real desktop login, KDE or WSLg.
+4. **A full Linux desktop:** check 8 passed under GNOME Shell 46 on X11, on
+   a private display on journel (HANDOFF.md, Open F): a copy arrives at the
+   next change of focus, and `vedabase unicode` converts without one. Still
+   untried: GNOME's Wayland session (nested on journel, GNOME Shell never
+   started its on-demand Xwayland), a desktop someone logs in to, KDE, WSLg.
 5. **Open 4's new items:** the port in the printed link; install.sh outside
    the viewer's lock.
 

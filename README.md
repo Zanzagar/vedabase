@@ -330,10 +330,11 @@ Formatting (bold, italics) is not kept, and Devanagari script does not
 convert: it comes out as Latin letters. [How it works](docs/how-it-works.md#text-copied-out-of-vedabase).
 
 VedaBase Unicode is new. On Linux it has been tested with text copied in
-VedaBase itself, in the browser viewer and on a simple test desktop, but not
-yet on a full desktop such as GNOME or KDE, and it has not run on Windows or
-a real Mac yet. If it does not work for you, please tell whoever gave you this
-installer; the first reports will correct these steps.
+VedaBase itself: in the browser viewer, and with two window managers, a
+simple one and GNOME's (on X11), each on a server's private display. It has
+not been tried yet on a desktop someone logs in to, on GNOME's Wayland session
+or KDE, nor on Windows or a real Mac. If it does not work for you, please tell
+whoever gave you this installer; the first reports will correct these steps.
 
 ## What the installers add
 
