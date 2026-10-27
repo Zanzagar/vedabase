@@ -162,6 +162,14 @@ check "  ... and the next viewer gets a nudger of its own" nudger_up
 kill -CONT "$survivor"; sleep 1
 check "  ... while the survivor's ends with the survivor" test -z "$(nudgers "$old_display")"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# The home spelled another way (here with a trailing slash) is the same home:
+# 'vedabase stop' run under that spelling must end the viewer all the same.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-spelling.out" 2>&1
+check "  (a display to stop is running)" test "$(home_xvncs "$VH")" -eq 1
+VEDABASE_HOME=$VH/ run "$H/.local/bin/vedabase" stop >"$B/stop-spelling.out" 2>&1
+check "'vedabase stop' with the home spelled another way ends the display" test "$(home_xvncs "$VH")" -eq 0
+check "  ... and takes the page down" test -z "$(ss -Htln "sport = :$PORT")"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # A nudger held up past the end of its display must not cost the next display
 # its own, even when the new display takes the old one's number.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1

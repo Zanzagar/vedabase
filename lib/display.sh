@@ -44,8 +44,16 @@ vb_pids_with_arg() { # NAME ARG
   return 0
 }
 
-# The Xvnc of display NAME: its -rfbunixpath is this home's socket for NAME.
-vb_display_pids() { vb_pids_with_arg Xtigervnc "$(vb_sock "$1")"; } # NAME
+# The socket display NAME was started with. Its name carries a hash of the
+# home as spelled then (/x/vb and /x/vb/ are one home, two hashes), so it is
+# recorded in the run folder, which every spelling reaches; a display from
+# before the record has the hash of the spelling now.
+vb_display_sock() { # NAME
+  if [[ -s $VB_RUN/$1/sock ]]; then cat -- "$VB_RUN/$1/sock"; else vb_sock "$1"; fi
+}
+
+# The Xvnc of display NAME: its -rfbunixpath is that socket.
+vb_display_pids() { vb_pids_with_arg Xtigervnc "$(vb_display_sock "$1")"; } # NAME
 
 # The records say which display; they count only while it is still there.
 vb_display_alive() { # NAME
@@ -73,6 +81,7 @@ vb_display_start() {
   fi
   sock=$(vb_sock "$name")
   rm -f -- "$d/xauth" "$sock"
+  printf '%s\n' "$sock" >"$d/sock"
   (umask 077 && : >"$d/xauth" && : >"$d/displayfd") # displayfd exists before Xvnc writes to it
   # Xvnc accepts the cookie whatever display it is filed under; clients look it
   # up by display, so it is filed again under the one Xvnc picks. Fed on
@@ -126,7 +135,7 @@ vb_display_stop() { # NAME
   pids=$(vb_display_pids "$1")
   # shellcheck disable=SC2086 # one PID a word
   [[ -z $pids ]] || kill $pids 2>/dev/null || true
-  rm -f -- "$d/xvnc.pid" "$d/display" "$d/displayfd" "$(vb_sock "$1")"
+  rm -f -- "$d/xvnc.pid" "$d/display" "$d/displayfd" "$(vb_display_sock "$1")"
 }
 
 # --- browser viewer -------------------------------------------------------------
@@ -153,7 +162,7 @@ vb_novnc_dir() {
 
 # websockify for this home's viewer, and the copies of it that serve
 # connections: their --unix-target is this home's socket.
-vb_websockify_pids() { vb_pids_with_arg python3 "--unix-target=$(vb_sock web)"; }
+vb_websockify_pids() { vb_pids_with_arg python3 "--unix-target=$(vb_display_sock web)"; }
 vb_websockify_alive() { [[ -n $(vb_websockify_pids) ]]; }
 
 # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X event
@@ -188,7 +197,7 @@ vb_web_start() { # GEOMETRY
     novnc=$(vb_novnc_dir) || vb_die "noVNC is missing; re-run install.sh"
     # Ubuntu's websockify package targets the system python3, not pyenv/uv ones.
     PYTHONPATH=$VB_TOOLS/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH} \
-      setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$(vb_sock web)" \
+      setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$(vb_display_sock web)" \
       "127.0.0.1:$port" >"$d/websockify.log" 2>&1 </dev/null &
   fi
   sleep 1
