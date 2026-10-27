@@ -51,13 +51,11 @@ web_x() { # COMMAND...: on the browser viewer's display
   DISPLAY=$(<"$VH/run/web/display") XAUTHORITY=$VH/run/web/xauth PATH=$VH/tools/root/usr/bin:$PATH \
     LD_LIBRARY_PATH=$VH/tools/root/usr/lib/x86_64-linux-gnu "$@"
 }
-nudging() { # PID: is it the viewer's nudger?
-  local a
-  a=$(ps -o args= -p "${1:-0}" 2>/dev/null) || return 1
-  [[ $a == *x11-nudge.py* ]]
+nudging() { # does the viewer's nudger run? It holds its lock while it does.
+  flock -n -E 3 "$VH/run/web/nudge.lock" true 2>/dev/null
+  test $? -eq 3
 }
-nudger=$(cat "$VH/run/web/nudge.pid" 2>/dev/null) || nudger=''
-check "the browser viewer runs a nudger for Wine's copies" nudging "$nudger"
+check "the browser viewer runs a nudger for Wine's copies" nudging
 for _ in $(seq 1 60); do [[ -n $(web_x xdotool search --name '^Folio Views' 2>/dev/null) ]] && break; sleep 0.5; done
 sleep 4 # the infobase opening
 web_x xdotool mousemove 430 66 click --repeat 3 --delay 80 1; sleep 0.5
@@ -88,11 +86,19 @@ else
 fi
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web2.out" 2>&1
 check "a second vedabase web gives the link again" grep -q 'already running' "$B/web2.out"
+# Stopping must pick no process by name or by a recorded PID: one that only
+# names the nudger (another install's, an editor on it) must survive, even
+# behind a stale nudge.pid, as an earlier draft of the viewer kept.
+bash -c "exec -a 'python3 -I $VH/app/lib/x11-nudge.py every 1' sleep 120" &
+decoy=$!
+printf '%s\n' "$decoy" >"$VH/run/web/nudge.pid"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 check "stop leaves no display running" test "$(home_xvncs "$VH")" -eq 0
 check "stop leaves no Wine running" test "$(prefix_procs "$VH/prefix")" -eq 0
-nudging "$nudger"
-check "stop ends the nudger" test $? -ne 0 -a ! -e "$VH/run/web/nudge.pid"
+nudging
+check "stop ends the nudger" test $? -ne 0
+check "  ... and leaves a process that only names it alone" kill -0 "$decoy"
+kill "$decoy"; wait "$decoy" 2>/dev/null
 
 run "$H/.local/bin/vedabase" backup "$B/backup.tar.gz" >"$B/backup.log" 2>&1
 check "backup succeeds" test $? -eq 0

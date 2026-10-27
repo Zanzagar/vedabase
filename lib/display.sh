@@ -138,13 +138,6 @@ vb_websockify_alive() {
   [[ -s $pidf ]] && kill -0 "$(<"$pidf")" 2>/dev/null
 }
 
-vb_nudger_alive() {
-  local pidf=$VB_RUN/web/nudge.pid args
-  [[ -s $pidf ]] || return 1
-  args=$(ps -o args= -p "$(<"$pidf")" 2>/dev/null) || return 1
-  [[ $args == *x11-nudge.py* ]]
-}
-
 vb_web_start() { # GEOMETRY
   local d=$VB_RUN/web port novnc
   port=$(vb_web_port)
@@ -153,11 +146,11 @@ vb_web_start() { # GEOMETRY
   # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X
   # event wakes it (lib/x11-nudge.py says why), and with no window manager
   # nothing on this display makes one: noVNC's clipboard panel would never
-  # see a copy. A nudge a second costs Folio nothing measurable.
-  if ! vb_nudger_alive; then
-    setsid python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 >"$d/nudge.log" 2>&1 </dev/null &
-    printf '%s\n' "$!" >"$d/nudge.pid"
-  fi
+  # see a copy. A nudge a second costs Folio nothing measurable. The nudger
+  # holds a lock while it runs, so a second one gives up at once, and it ends
+  # when the display does: nothing has to find it by PID.
+  setsid flock -n "$d/nudge.lock" python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 \
+    >>"$d/nudge.log" 2>&1 </dev/null &
   vb_websockify_alive && return 0
   if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
     vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
@@ -176,7 +169,8 @@ vb_web_stop() {
   local pidf=$VB_RUN/web/websockify.pid
   if vb_websockify_alive; then kill "$(<"$pidf")" 2>/dev/null || true; fi
   rm -f -- "$pidf"
-  if vb_nudger_alive; then kill "$(<"$VB_RUN/web/nudge.pid")" 2>/dev/null || true; fi
-  rm -f -- "$VB_RUN/web/nudge.pid"
   vb_display_stop web
+  # The nudger ends with the display; wait for it, so that a viewer started
+  # at once gets a nudger of its own.
+  [[ ! -e $VB_RUN/web/nudge.lock ]] || flock -w 5 "$VB_RUN/web/nudge.lock" true 2>/dev/null || true
 }
