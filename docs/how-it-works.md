@@ -268,6 +268,77 @@ It then writes two small app bundles to `~/Applications`. Each one's `launch`
 script runs `Views.exe` on its shadow file. They are built locally, so
 Gatekeeper never quarantines them.
 
+## Text copied out of VedaBase
+
+The infobases store their diacritics in an 8-bit encoding: VedaBase's fonts
+draw Sanskrit letters in the places of Latin-1 ones, and the infobases' styles
+name mostly those fonts (ScaGoudy about 1,170 times, ScaTimes about 270,
+Balaram 70 to 120). Folio copies the bytes, so the text pasted elsewhere shows
+the Latin-1 letters: "Kåñëa", "Çrémad-Bhägavatam". `lib/balaram-unicode.tsv`
+maps the 31 of them to Unicode. `bin/vedabase-unicode` (Linux and macOS,
+bash 3.2) and `windows/vedabase-unicode.ps1` (Windows PowerShell 5.1) apply
+it to the clipboard; Linux runs the first as `vedabase unicode`.
+
+**The table, checked against the fonts** the installers download, read with
+fontTools. Balaram builds 28 of the 31 glyphs from named parts (ñ is `s` and a
+dot, ï is `n` and a tilde, è is ṛ and a macron), which says what each draws
+without anyone's eye; all 31 were also drawn and compared in Balaram, ScaTimes
+and ScaGoudy. They match, with one exception: at È (U+00C8) Balaram draws Ṝ,
+but every SCA face checked (ScaTimes and ScaGoudy, regular, bold and italic)
+draws ü there, a lowercase letter with nothing below the line. The table keeps
+Balaram's Ṝ. The infobase text is compressed, so whether È occurs in it, and
+in which font, is not known; a ü written in an SCA font would come out as Ṝ.
+The acute vowels (í ó ú Í Ó Ú) draw ordinary accented letters in all these
+fonts and are left alone. Sanskrit Times uses another layout altogether, but
+no infobase style names it.
+
+**One pass.** ï becomes ñ, and ñ becomes ṣ, so a conversion that ran on into
+its own output would turn *jïäna* into *jṣāna*. The shell version runs the rows
+as sed commands, the rows for ñ and Ñ first; the PowerShell one makes a single
+regular-expression pass with a lookup keyed by character (PowerShell's
+hashtables ignore case, and Ï is not ï). `tests/unicode.sh` holds the two to
+the same bytes.
+
+**Never twice.** Once converted, ñ means ñ, and converting again would make
+*jṣāna* of *jñāna*. Both versions therefore refuse (exit status 4) text that
+holds a letter the conversion makes (ā, ṣ, l̐ and the rest), which converted
+text almost always does, and they remember a checksum of the last result for
+the rest: converted, *yajïa* reads *yajña*, all of it Latin-1. Text from
+elsewhere that holds only ñ (a Unicode *yajña* from a web page) cannot be told
+from VedaBase's, so the instructions say to convert only what was just copied
+out of VedaBase. Text with nothing to convert gives status 3.
+
+**Bytes.** Everything but the 31 letters comes through as it was, line ends
+included. Some BSD seds end their output with a newline the input lacked, so
+the shell version gives the input one and takes it off again afterwards. Only
+plain text goes back on the clipboard: bold and italics are lost. The text
+ends at its first NUL, as Windows programs read it: under Wine, Folio's copy
+reached the X clipboard as the word, a NUL, and whatever followed in Folio's
+buffer.
+
+**The clipboard.**
+- *Linux.* xclip, which `install.sh` fetches without root, wherever there is an
+  X display: Folio is an X program under Wine, on Wayland desktops too
+  (XWayland). wl-clipboard is used where there is only Wayland. With no desktop,
+  `vedabase unicode` uses the browser viewer's display; TigerVNC and noVNC pass
+  the clipboard as UTF-8 (their extended clipboard), so the converted text
+  reaches noVNC's clipboard panel whole. A notification says what happened
+  where a session bus can show one. The menu entry is `vedabase-unicode.desktop`.
+- *macOS.* pbpaste and pbcopy, with UTF-8 set, since apps started from Finder
+  have no locale. *VedaBase Unicode* is an app bundle whose launch script runs
+  the converter's copy in `~/Library/Application Support/VedaBase/app`, so the
+  unzipped folder can go. A dialog that closes itself says what happened.
+- *Windows.* The installer copies the script and the table to
+  `C:\Program Files\VedaBase-Setup`, which only administrators can change, and
+  makes two shortcuts to `powershell.exe -WindowStyle Hidden -File …`: one in
+  the Start menu with the key Ctrl+Alt+U, one on the shared desktop without,
+  since two shortcuts with one key would compete. The script reads and writes
+  the clipboard through Windows Forms, trying again while another program
+  (clipboard history, cloud clipboard) holds it. It is plain ASCII, because
+  Windows PowerShell 5.1 reads a script without a BOM in the ANSI code page,
+  and a window that closes itself says what happened. The last result's
+  checksum is kept in `%LOCALAPPDATA%\VedaBase`.
+
 ## What was verified
 
 Checked in October 2026 on Ubuntu 24.04 with Wine 11.0:
@@ -308,6 +379,21 @@ Windows PowerShell 5.1 refused to create a folder at `C:\`; Windows XP mode
 made every start ask for administrator rights; a stale recent-file entry;
 blank pages after an uninstall and reinstall in one sign-in (the fonts).
 [windows-test-2026-10.md](windows-test-2026-10.md) has the details.
+
+The Unicode converter, in October 2026 (`tests/unicode.sh`, `linux-e2e.sh`,
+`mac-sim.sh`): the worked examples, all 31 letters, line ends and the
+refusals under bash, bash 3.2 and PowerShell 7; the shell and PowerShell
+versions agreeing byte for byte on every Windows-1252 character and every
+pair of legacy letters; the clipboard round trip with xclip; the installed
+`vedabase unicode` and its menu entry; converted text reaching noVNC's
+clipboard panel with its Unicode whole; the Mac app against a stand-in
+pasteboard. Text copied out of Folio itself, under Wine in the browser
+viewer's display: a word copied once reached the X clipboard as
+`kaumäraà`, a NUL and leftovers (which is why the converter stops at the NUL),
+and converted to *kaumāraṁ*; in four later sessions, Folio's copy never
+reached it (Folio offers its text on request only, and Wine logged taking the
+X selection, but the X server showed no owner). Not verified: the converter on
+Windows or a real Mac, and copying out of Folio on a Linux desktop.
 
 **Not yet verified:** a real Mac; WineHQ bug 60494 on Apple Silicon; and on
 Windows: a second account, a standard user, an accepted restart, a note saved

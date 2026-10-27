@@ -39,8 +39,12 @@ matters, with the static checks before every commit:
 
 - **Static:** ShellCheck (`-x`, SC2034 aside: library variables look unused
   alone); `bash -n` with a real bash 3.2 for `lib/common.sh`, `lib/fetch.sh`,
-  `lib/setup.sh`, `mac/install.sh` and `Install-VedaBase-Mac.command`; a
-  PowerShell parse of `windows/install-vedabase.ps1`. The bash 3.2, ShellCheck
+  `lib/setup.sh`, `mac/install.sh`, `Install-VedaBase-Mac.command` and
+  `bin/vedabase-unicode`; a PowerShell parse of `windows/install-vedabase.ps1`
+  and `windows/vedabase-unicode.ps1`.
+- **`tests/unicode.sh`:** the Unicode converter, no install needed; give it
+  `VB_TEST_BASH32` and `VB_TEST_PWSH` (the archived `pwsh/root/pwsh`), or it
+  skips the bash 3.2 and Windows halves. The bash 3.2, ShellCheck
   and PowerShell builds used on 2026-10-20 are archived in
   `/journel/s1/cjh5690/archive/vedabase/session-7f53bfb5-2026-10-19/scratchpad/`
   (`bash32/`, `sc/`, `pwsh/`).
@@ -75,7 +79,13 @@ matters, with the static checks before every commit:
   the Linux checks parse it with, and the two differ: 5.1's `New-Item -Force`
   refuses a drive root (`C:\`), which stopped every Windows install before its
   first download until a real run on Atman found it (9eefebf). A parse proves
-  syntax only; Windows behaviour needs a Windows run.
+  syntax only; Windows behaviour needs a Windows run. 5.1 also reads a script
+  without a BOM in the ANSI code page: keep every `.ps1` plain ASCII, making
+  other letters from their codes (`[char]0x0101`). Its hashtables ignore case,
+  so keys that differ only in case (Ï, ï) go in a `Dictionary`.
+- Shared shell code converts bulk text with sed: bash 3.2's `${var//x/y}` is
+  quadratic (260 KB did not finish in 300 s). Some BSD seds end their output
+  with a newline the input lacked; `bin/vedabase-unicode` shows the fix.
 - Never set Windows XP compatibility mode on `Views.exe`: on Windows 11 it makes
   every start demand administrator rights, and removing it takes a flush of the
   compatibility cache too (`Remove-OldCompatMode`).

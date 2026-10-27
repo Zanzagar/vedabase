@@ -81,6 +81,8 @@ whether a PC is in S mode. Switching out of it is free but cannot be undone.
    - it registers the diacritic fonts with Windows,
    - it sets up Folio's display settings for every account on the PC,
    - it tidies up the setup files it put in `C:\`,
+   - it adds **VedaBase Unicode** (Ctrl+Alt+U), which makes text copied out
+     of VedaBase readable elsewhere ([Copying text out](#copying-text-out)),
    - then it offers to open VedaBase.
 
 Open **Bhaktivedanta VedaBase 2003** (VedaBase 25) or **VaniBase 25** from the
@@ -121,7 +123,9 @@ Notes:
    the Fonts window the installer opens, and finishes.
 4. It finishes the setup and puts **VedaBase 25** and **VaniBase 25** apps in
    the `Applications` folder inside your home folder. Drag them to the Dock if
-   you like. In VedaBase, ⌘C and ⌘V copy and paste.
+   you like. In VedaBase, ⌘C and ⌘V copy and paste; the third app there,
+   **VedaBase Unicode**, makes copied text readable elsewhere
+   ([Copying text out](#copying-text-out)).
 
 Everything lives in `~/Library/Application Support/VedaBase`, about 3.5 GB.
 
@@ -218,6 +222,7 @@ the viewer starts and is included in the printed link.
 | `vedabase doctor` | check the installation |
 | `vedabase backup [FILE]` | save the program, the infobases **and your notes** as one `.tar.gz` |
 | `vedabase where` | print where everything is |
+| `vedabase unicode` | turn text copied out of VedaBase into Unicode, on the clipboard ([Copying text out](#copying-text-out)); `vedabase unicode - <in.txt >out.txt` converts a file |
 
 Everything (about 3.5 GB) goes in `~/.local/share/vedabase` unless you choose
 another place with `--home`. Choose a local disk if your home directory is
@@ -281,19 +286,42 @@ The files come from two public Google Drive folders
     uninstalling deletes the VedaBase one.
   - Uninstall *Bhaktivedanta VedaBase 2003* in *Settings → Apps*.
   - Delete `C:\Bhaktivedanta VedaBase 2003`, `C:\Program Files\VedaBase-Setup`,
-    the *Bhaktivedanta VedaBase 2003* and *VaniBase 25* icons on the desktop,
-    and the *Bhaktivedanta VedaBase 2003* folder in the Start menu.
-- **macOS:** delete `~/Library/Application Support/VedaBase` and the two
+    the *Bhaktivedanta VedaBase 2003*, *VaniBase 25* and *VedaBase Unicode*
+    icons on the desktop, and the *Bhaktivedanta VedaBase 2003* folder in the
+    Start menu.
+- **macOS:** delete `~/Library/Application Support/VedaBase` and the three
   apps in `~/Applications`.
 - **Linux:** delete the folder shown by `vedabase where` (home), the launcher
   `~/.local/bin/vedabase`, `~/.config/vedabase`, and
-  `~/.local/share/applications/vedabase.desktop` and `vanibase.desktop`.
+  `~/.local/share/applications/vedabase.desktop`, `vanibase.desktop` and
+  `vedabase-unicode.desktop`.
 
 ## Copying text out
 
-The infobases store diacritics in the old 8-bit Balaram/SCA font encoding.
-Copied text looks right only in those fonts, and shows odd characters
-elsewhere until it is converted to Unicode.
+VedaBase's fonts draw Sanskrit letters in place of ordinary ones, so text
+copied out of it reads wrongly anywhere else: *Kåñëa* instead of *Kṛṣṇa*,
+*Çré* instead of *Śrī*. Each installer adds **VedaBase Unicode**, which turns
+the copied text on the clipboard into standard Unicode, ready to paste into
+any program, AI tools included:
+
+1. In VedaBase, select some text and copy it (Ctrl+C; on a Mac, ⌘C).
+2. Convert it:
+   - **Windows:** press **Ctrl+Alt+U**, or double-click **VedaBase Unicode**
+     on the desktop. A small window says *Converted to Unicode* and closes
+     by itself. If the keys do nothing at first, sign out and back in once.
+   - **macOS:** open **VedaBase Unicode** in the `Applications` folder inside
+     your home folder (drag it to the Dock to have it at hand).
+   - **Linux:** choose **VedaBase Unicode** in the application menu, or run
+     `vedabase unicode`; your desktop's keyboard settings can give it a
+     shortcut.
+3. Paste it where you like.
+
+It converts only text fresh from VedaBase. If the copied text already has
+Unicode letters (such as ā or ṣ), or is the text it has just converted, it
+leaves the text alone and says so, because converting twice would turn the
+ñ of *jñāna* into ṣ: copy again in VedaBase before each conversion.
+Formatting (bold, italics) is not kept, and Devanagari script does not
+convert: it comes out as Latin letters. [How it works](docs/how-it-works.md#text-copied-out-of-vedabase).
 
 ## What the installers add
 
@@ -315,6 +343,8 @@ Each installer runs the original installer, then takes care of these:
   account the settings.
 - **The intro sound.** On Linux and macOS, the installer would stall on its
   intro sound under Wine.
+- **Unicode text.** VedaBase Unicode turns copied text into standard Unicode
+  ([Copying text out](#copying-text-out)).
 
 [docs/how-it-works.md](docs/how-it-works.md) explains every step and records
 what was verified. [docs/sources.md](docs/sources.md) summarizes the original
@@ -329,9 +359,8 @@ The installers get better as reports come in:
   will correct these steps wherever they differ.
 - **What Windows updates broke.** Some Folio features have stopped working on
   newer Windows. Once it is known which, the installers can add workarounds.
-- **Unicode text.** Text copied out of VedaBase uses the old Balaram encoding
-  (see [Copying text out](#copying-text-out)). A converter to standard Unicode
-  would make it usable in other programs, including AI tools.
+- **Devanagari.** VedaBase Unicode converts the transliterated Sanskrit;
+  passages in Devanagari script still come out as Latin letters.
 - **New releases.** For a new VedaBase release, the installers need only an
   updated `manifest/drive-files.tsv`.
 

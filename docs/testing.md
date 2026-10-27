@@ -35,6 +35,12 @@ reinstalling without signing out of Windows.
 7. Make a highlight or a note, close VedaBase (answer **Yes** when it asks
    whether to save changes), reopen it, and check it is still there. That
    proves the shadow file is writable.
+8. **VedaBase Unicode:** at Bg 2.13, select the verse's first line and copy it
+   (Ctrl+C; on a Mac, ⌘C). Convert it as [Copying text out](../README.md#copying-text-out)
+   says, then paste it into a text editor: it must read *dehino 'smin yathā
+   dehe*, not *yathä*. Convert again without copying: it must say *this is the
+   text it has just converted* and change nothing. Copy a word with no
+   diacritics, such as *dehino*, and convert: it must say *Nothing to convert*.
 
 ## Windows only
 
@@ -77,6 +83,14 @@ reinstalling without signing out of Windows.
 - Note whether a media player, or Windows asking which app to use, opened at
   the start (the installer plays `C:\Spec\INTRO.WAV`), and record the restart
   messages word for word.
+- **VedaBase Unicode** (check 8): try **Ctrl+Alt+U** both with VedaBase in
+  front and with another program in front, and note whether the keys worked
+  at once or only after signing out and back in. Note whether a console
+  window flashes, whether the small window's text shows ā and ṣ (not
+  "Ä" and other odd letters), and which program has the focus after it
+  closes. Try the desktop icon too, and both again in a second account.
+  `C:\Program Files\VedaBase-Setup` holds `vedabase-unicode.ps1` and
+  `balaram-unicode.tsv`.
 
 ## macOS only
 
@@ -86,6 +100,8 @@ reinstalling without signing out of Windows.
   password.
 - After the install, `~/Applications/VedaBase 25.app` opens VedaBase directly
   and shows an icon. The icon is optional; it comes from `sips`.
+- **VedaBase Unicode** (check 8): note whether its dialog appears in front, and
+  whether macOS asked for any permission the first time.
 - Nothing new appeared on the Desktop.
 - On an Apple Silicon Mac, open and close VedaBase about 20 times. Open WineHQ
   bug 60494 makes some 32-bit programs crash or hang at random under Rosetta.
