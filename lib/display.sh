@@ -72,21 +72,17 @@ vb_display_use() { # NAME: point DISPLAY/XAUTHORITY at it
 
 # vb_display_start NAME GEOMETRY SECURITY   (SECURITY: None or VncAuth)
 vb_display_start() {
-  local name=$1 geom=$2 sec=$3 d=$VB_RUN/$1 n='' i sock cookie pid left
+  local name=$1 geom=$2 sec=$3 d=$VB_RUN/$1 n='' i sock cookie pid
   mkdir -p "$d"
   chmod 700 "$VB_RUN" "$d"
   if vb_display_alive "$name"; then
     vb_display_use "$name"
     return 0
   fi
-  # What an earlier display of NAME left goes while its record names it, and
-  # an Xvnc that will not go (hung, or held up) keeps the record: replaced, it
-  # would leave that Xvnc out of every later stop. The new display gets a
-  # socket of its own, so that no record of an earlier one (stale, or in a
-  # home since moved) can name its processes.
-  vb_display_stop "$name"
-  left=$(vb_display_gone "$name") ||
-    vb_die "an earlier VedaBase display did not stop (Xtigervnc, PID $left); end it, for example with: kill -9 $left"
+  # The new display gets a socket of its own, so that no record of an earlier
+  # one (stale, or in a home since moved) can name its processes; what the
+  # record names now goes first.
+  vb_display_retire "$name"
   sock=$(vb_sock "$name")
   sock=${sock%.sock}-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n').sock
   rm -f -- "$d/xauth"
@@ -145,6 +141,21 @@ vb_display_stop() { # NAME
   # shellcheck disable=SC2086 # one PID a word
   [[ -z $pids ]] || kill $pids 2>/dev/null || true
   rm -f -- "$d/xvnc.pid" "$d/display" "$d/displayfd" "$(vb_display_sock "$1")"
+}
+
+# Ends what an earlier display of NAME left while its record still names it:
+# for the browser viewer the websockify that served it, then its Xvnc. One
+# that will not go (hung, or held up) keeps the record, and the start stops
+# here, naming it: a new record would leave it out of every later stop.
+vb_display_retire() { # NAME
+  local left
+  if [[ $1 == web ]]; then
+    left=$(vb_websockify_stop) ||
+      vb_die "the browser viewer's earlier page server did not stop (websockify, PID $left); end it, for example with: kill -9 $left"
+  fi
+  vb_display_stop "$1"
+  left=$(vb_display_gone "$1") ||
+    vb_die "an earlier VedaBase display did not stop (Xtigervnc, PID $left); end it, for example with: kill -9 $left"
 }
 
 # Waits up to 5 s for display NAME's Xvnc to go. If any is still there (hung,
@@ -237,13 +248,7 @@ vb_nudger_ensure() {
 vb_web_start() { # GEOMETRY
   local d=$VB_RUN/web port novnc left
   port=$(vb_web_port)
-  if ! vb_display_alive web; then
-    # The websockify of an earlier display goes before the new display's
-    # record replaces the one that names it; one that will not go keeps it.
-    left=$(vb_websockify_stop) ||
-      vb_die "the browser viewer's earlier page server did not stop (websockify, PID $left); end it, for example with: kill -9 $left"
-    vb_web_password
-  fi
+  vb_display_alive web || vb_web_password
   vb_display_start web "$1" VncAuth
   if ! vb_websockify_alive; then
     # Copies left by a server that died hold its port, serving no one new.
