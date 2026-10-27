@@ -36,11 +36,14 @@ reinstalling without signing out of Windows.
    whether to save changes), reopen it, and check it is still there. That
    proves the shadow file is writable.
 8. **VedaBase Unicode:** at Bg 2.13, select the verse's first line and copy it
-   (Ctrl+C; on a Mac, ⌘C). Convert it as [Copying text out](../README.md#copying-text-out)
-   says, then paste it into a text editor: it must read *dehino 'smin yathā
-   dehe*, not *yathä*. Convert again without copying: it must say *this is the
-   text it has just converted* and change nothing. Copy a word with no
-   diacritics, such as *dehino*, and convert: it must say *Nothing to convert*.
+   (Ctrl+C; on a Mac, ⌘C). Paste it into a text editor once before converting:
+   it must arrive, still reading *yathä*. That shows the copy leaves VedaBase
+   at all, which on Linux and the Mac is Wine's doing. Convert it as
+   [Copying text out](../README.md#copying-text-out) says, then paste it into
+   a text editor: it must read *dehino 'smin yathā dehe*, not *yathä*. Convert
+   again without copying: it must say *this is the text it has just converted*
+   and change nothing. Copy a word with no diacritics, such as *dehino*, and
+   convert: it must say *Nothing to convert*.
 
 ## Windows only
 

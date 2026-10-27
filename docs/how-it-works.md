@@ -183,6 +183,12 @@ as you, with no root:
   or maximized. Folio also doesn't maximize itself under Wine, so
   `vedabase web` sets `HKCU\Software\VedaBase\4\Views\Frame\Layout\AppPosition`
   (left,top,right,bottom) to fill the desktop.
+- **A nudger** (`lib/x11-nudge.py every 1`), so that text copied in Folio
+  reaches noVNC's clipboard panel. Wine 11.0 hands a copy to the X clipboard
+  only when an X event wakes it, and with no window manager nothing on this
+  display makes one ([Text copied out of VedaBase](#text-copied-out-of-vedabase)).
+  Changing a property of the root window once a second does; it cost Folio no
+  CPU time that could be measured.
 
 The Linux installer uses the same kind of private display, a separate `Xvnc`,
 so the wizard never appears on anyone's screen. Where `x11-xkb-utils` is
@@ -322,8 +328,9 @@ included. Some BSD seds end their output with a newline the input lacked, so
 the shell version gives the input one and takes it off again afterwards. Only
 plain text goes back on the clipboard: bold and italics are lost. The text
 ends at its first NUL, as Windows programs read it: under Wine, Folio's copy
-reached the X clipboard as the word, a NUL, and whatever followed in Folio's
-buffer.
+reaches the X clipboard as the word, a NUL, and whatever followed in Folio's
+buffer, because Wine converts the whole block of memory Folio hands over and
+trims only the NULs at its end (`export_utf8_string()`).
 
 **The clipboard.**
 - *Linux.* xclip, which `install.sh` fetches without root, wherever there is an
@@ -333,6 +340,24 @@ buffer.
   the clipboard as UTF-8 (their extended clipboard), so the converted text
   reaches noVNC's clipboard panel whole. A notification says what happened
   where a session bus can show one. The menu entry is `vedabase-unicode.desktop`.
+- *Wine 11.0 and the X clipboard.* When Folio copies, Wine 11.0 claims the X
+  clipboard but leaves the claim unsent in its connection's buffer: its
+  `acquire_selection()` does not flush it, and since 11.0 Wine flushes a
+  connection only when an X event arrives for it (10.0 flushed it on every
+  wait). Until something wakes Wine, the clipboard keeps what it held before
+  the copy. On a desktop, the window manager wakes it at the next change of
+  focus, so pasting into another program normally works; but a read made
+  first goes to Wine's window for the previous copy, which refuses it, and
+  xclip then falls back to Latin-1 text. In the browser viewer nothing wakes
+  it at all. Every Wine thread watches the root window's properties, so
+  changing one wakes them: `lib/x11-nudge.py` does that, then waits up to half
+  a second for the claim to arrive. `vedabase unicode` runs it before every
+  read, and the browser viewer runs it once a second. Wine fixed this upstream
+  in 11.14 (commit a33000a6, "winex11.drv: Flush display in
+  acquire_selection()"); the installers pin 11.0, which does not have it. With
+  a Wine that has it, the nudges do no harm and can go. Wine's Mac driver
+  hands a copy to the Mac pasteboard at once, with no such buffer (read in
+  its code, not tried on a Mac).
 - *macOS.* pbpaste and pbcopy, with UTF-8 set, since apps started from Finder
   have no locale. *VedaBase Unicode* is an app bundle whose launch script runs
   the converter's copy in `~/Library/Application Support/VedaBase/app`, so the
@@ -393,16 +418,20 @@ The Unicode converter, in October 2026 (`tests/unicode.sh`, `linux-e2e.sh`,
 `mac-sim.sh`): the worked examples, all 31 letters, line ends and the
 refusals under bash, bash 3.2 and PowerShell 7; the shell and PowerShell
 versions agreeing byte for byte on every Windows-1252 character and every
-pair of legacy letters; the clipboard round trip with xclip; the installed
-`vedabase unicode` and its menu entry; converted text reaching noVNC's
-clipboard panel with its Unicode whole; the Mac app against a stand-in
-pasteboard. Text copied out of Folio itself, under Wine in the browser
-viewer's display: a word copied once reached the X clipboard as
-`kaumäraà`, a NUL and leftovers (which is why the converter stops at the NUL),
-and converted to *kaumāraṁ*; in four later sessions, Folio's copy never
-reached it (Folio offers its text on request only, and Wine logged taking the
-X selection, but the X server showed no owner). Not verified: the converter on
-Windows or a real Mac, and copying out of Folio on a Linux desktop.
+pair of legacy letters; the clipboard round trip with xclip, and with a
+stand-in that, like Wine 11.0, sends its claim on the clipboard only when
+woken; the installed `vedabase unicode` and its menu entry; converted text
+reaching noVNC's clipboard panel with its Unicode whole; the Mac app against
+a stand-in pasteboard. Text copied out of Folio itself, under Wine: in the
+browser viewer, a word copied with xdotool reached the X clipboard by itself,
+as `kaumäraà`, a NUL and leftovers, and converted to *kaumāraṁ*; a word
+copied through the browser showed in noVNC's clipboard panel as `kaumäraà`;
+on a private display with a window manager (openbox), three words copied in
+turn each converted at once. Before the nudges (*Wine 11.0 and the X
+clipboard*, above), a copy reached the browser viewer's clipboard only when
+something happened to wake Wine, in one session of five. Not verified: the
+converter on Windows or a real Mac, and copying out of Folio on a full Linux
+desktop (GNOME, KDE, Wayland) or in WSLg.
 
 **Not yet verified:** a real Mac; WineHQ bug 60494 on Apple Silicon; and on
 Windows: a second account, a standard user, an accepted restart, a note saved

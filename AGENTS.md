@@ -75,6 +75,12 @@ matters, with the static checks before every commit:
 - Install.exe's launcher checks free space in 32-bit arithmetic: the installers
   write a filler when the free space sits just above a multiple of 4 GiB. Do not
   remove it as dead code.
+- Wine 11.0 leaves its claim on the X clipboard for a copy unsent until an X
+  event wakes it (fixed upstream in 11.14, a33000a6). `lib/x11-nudge.py` wakes
+  it: before each `vedabase unicode` read, and once a second in the browser
+  viewer. Keep both while the pinned Wine is older than 11.14. Test this path
+  with `tests/x11/lazy-owner.py` as the clipboard's owner: xclip as owner
+  sends its claim at once and never takes it.
 - The Windows script runs under Windows PowerShell 5.1, not the PowerShell 7
   the Linux checks parse it with, and the two differ: 5.1's `New-Item -Force`
   refuses a drive root (`C:\`), which stopped every Windows install before its

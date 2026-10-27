@@ -210,6 +210,12 @@ display has an X cookie and a VNC socket only your account can open. The page
 listens only on `127.0.0.1`, and it asks for a password that is new each time
 the viewer starts and is included in the printed link.
 
+To copy text out of the browser viewer, select it in VedaBase and press
+Ctrl+C. Within a second it appears in noVNC's clipboard panel: open the bar
+at the left edge of the page and click its **Clipboard** button, then copy the
+text from the box there. To have it in Unicode, run `vedabase unicode` on the
+server first ([Copying text out](#copying-text-out)).
+
 ### Commands
 
 | Command | What it does |
@@ -323,10 +329,11 @@ leaves the text alone and says so, because converting twice would turn the
 Formatting (bold, italics) is not kept, and Devanagari script does not
 convert: it comes out as Latin letters. [How it works](docs/how-it-works.md#text-copied-out-of-vedabase).
 
-VedaBase Unicode is new: it has been tested on Linux, but not yet on Windows
-or a real Mac, and on Linux, text copied out of VedaBase did not always reach
-the clipboard in tests. If it does not work for you, please tell whoever gave
-you this installer; the first reports will correct these steps.
+VedaBase Unicode is new. On Linux it has been tested with text copied in
+VedaBase itself, in the browser viewer and on a simple test desktop, but not
+yet on a full desktop such as GNOME or KDE, and it has not run on Windows or
+a real Mac yet. If it does not work for you, please tell whoever gave you this
+installer; the first reports will correct these steps.
 
 ## What the installers add
 
