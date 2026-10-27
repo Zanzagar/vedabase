@@ -91,11 +91,17 @@ vb_sha256() {
 }
 
 # Wine processes that belong to this prefix (wineserver -k would also do, but
-# this lets callers ask without starting a wineserver).
+# this lets callers ask without starting a wineserver). Their WINEPREFIX is
+# compared as a folder (-ef), not as a name, so that the home spelled another
+# way (/x/vb/ for /x/vb) still finds the Wine started under it.
 vb_prefix_pids() {
-  local pid
+  local pid kv
   for pid in $(pgrep -u "$(id -u)" -f '\.exe|wineserver' 2>/dev/null); do
-    grep -qzxF "WINEPREFIX=$VB_PREFIX" "/proc/$pid/environ" 2>/dev/null && printf '%s\n' "$pid"
+    while IFS= read -r -d '' kv; do
+      [[ $kv == WINEPREFIX=* ]] || continue
+      [[ ${kv#WINEPREFIX=} -ef $VB_PREFIX ]] && printf '%s\n' "$pid"
+      break
+    done 2>/dev/null <"/proc/$pid/environ" || true
   done
   return 0
 }

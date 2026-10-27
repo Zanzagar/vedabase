@@ -163,11 +163,16 @@ kill -CONT "$survivor"; sleep 1
 check "  ... while the survivor's ends with the survivor" test -z "$(nudgers "$old_display")"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # The home spelled another way (here with a trailing slash) is the same home:
-# 'vedabase stop' run under that spelling must end the viewer all the same.
+# 'vedabase status' sees its Wine, and 'vedabase stop' closes Wine first, as
+# under the usual spelling, then ends the viewer.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-spelling.out" 2>&1
 check "  (a display to stop is running)" test "$(home_xvncs "$VH")" -eq 1
+sleep 5 # Folio opening
+VEDABASE_HOME=$VH/ run "$H/.local/bin/vedabase" status >"$B/status-spelling.out" 2>&1
+check "'vedabase status' with the home spelled another way sees Wine running" grep -q '^wine: *running' "$B/status-spelling.out"
 VEDABASE_HOME=$VH/ run "$H/.local/bin/vedabase" stop >"$B/stop-spelling.out" 2>&1
-check "'vedabase stop' with the home spelled another way ends the display" test "$(home_xvncs "$VH")" -eq 0
+check "  ... and 'vedabase stop' under that spelling has closed Wine when it returns" test "$(prefix_procs "$VH/prefix")" -eq 0
+check "  ... ends the display" test "$(home_xvncs "$VH")" -eq 0
 check "  ... and takes the page down" test -z "$(ss -Htln "sport = :$PORT")"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # websockify forks a copy of itself for each connection, and a copy can
