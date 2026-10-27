@@ -58,6 +58,25 @@ public repository sees it**).
   was redone as flock (0ef6106), a fourth Codex review's one finding fixed (9862b76),
   and the converter merged into `main` and pushed; the local branch is deleted. On the
   merged code: `unicode.sh` 197 checks, `linux-e2e.sh` 40, `mac-sim.sh` 16.**
+- **► 2026-10-26/27, session 4133d657: Open F solved, a Wine 11.0 regression worked
+  around.** Wine 11.0 leaves its claim on the X clipboard for a copy in Xlib's buffer
+  until an X event next arrives for its clipboard thread; upstream fixed it in
+  wine-11.14 (a33000a6), and the stable branch has had no release since 11.0 (Open F
+  has the details, Open H the way out). `lib/x11-nudge.py` changes a property of the
+  root window, which every Wine thread watches: `vedabase unicode` runs it before each
+  read, and the browser viewer runs a nudger once a second, kept single by the X
+  server itself (it owns the selection `_VEDABASE_NUDGER`, which the server frees with
+  either). Five pinned Codex reviews (gpt-6-astra), every finding re-derived before it
+  was acted on: the branch (a stale pid file could let `stop` kill another process:
+  7757020), then each fix (a display outliving `stop` kept the lock, and a failed
+  nudger went unnoticed: 16a50ec; a lock outlived its X server, and flock proved
+  nothing about python: 8f422b7, the X selection; an unbounded probe, Xlib's default
+  error handler, events left in Xlib's queue: 767f718; stopped processes left behind
+  by an interrupted test: 87230e9, tests only, not reviewed again). Merged into `main`
+  (`d5c6a9f`..`87230e9`). On the merged code: `unicode.sh` 199 checks, `nudge.sh` 13,
+  `linux-e2e.sh` 58 (Chromium included: a word copied in Folio through the browser
+  shows in noVNC's clipboard panel), `mac-sim.sh` 16, `interrupt.sh` 13, `rollback.sh`
+  9; real Folio under openbox, on a private display, converted three copies in a row.
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -197,17 +216,36 @@ D. ~~**A stale line in the README:** "What's next" says the installers "already 
    **► Fixed 2026-10-26, with B.**
 E. **The merged branch `review/verdict-followups`** is still on GitHub and in journel's
    clone; deleting it needs the maintainer's OK (`.claude/settings.json` asks before a
-   remote delete).
-F. **Copying text out of Folio under Wine** (found 2026-10-26). In
+   remote delete). **► So is `clipboard/wine-flush` on GitHub (merged 2026-10-26; gone
+   from journel's clone).**
+F. ~~**Copying text out of Folio under Wine** (found 2026-10-26).~~ **► Solved
+   2026-10-26, session 4133d657.** In
    the browser viewer's display (Xvnc, a Wine virtual desktop, no window manager), a
    word copied in Folio reached the X clipboard in one session of five. Folio offers its
    text on request only (`SetClipboardData` with no data, for "Folio Document Format"
    and CF_TEXT); Wine logged `acquire_selection`, yet the X server showed no owner of
    CLIPBOARD, and Wine's log had no X error. When the text did arrive, a NUL and
-   leftovers of Folio's buffer followed it. Not tried: a Linux desktop with a window
+   leftovers of Folio's buffer followed it. ~~Not tried: a Linux desktop with a window
    manager (`vedabase open`), the Mac. Next: try those; trace the X protocol around
    `acquire_selection`; look for a Wine bug. Meanwhile `vedabase web`'s hint "Copy text
-   out through the clipboard tab on the noVNC side panel" is unverified.
+   out through the clipboard tab on the noVNC side panel" is unverified.~~
+   **► The cause: Wine 11.0 sends its claim only when an X event wakes its clipboard
+   thread.** `acquire_selection()` (`dlls/winex11.drv/clipboard.c`) has no XFlush, and
+   win32u 11.0 calls the driver's ProcessEvents, which flushed, only when X events are
+   pending (10.0 called it on every wait). X errors on that connection are ignored
+   (`x11drv_main.c:212`), hence the silent log. Proven on journel: one change of a
+   root-window property sent two queued claims in the same instant; on a private
+   display with openbox, a change of focus or a read flushed it, and the first read,
+   refused by Wine's window for the previous copy, fell back to Latin-1 STRING
+   ("Nothing to convert"). Upstream: a33000a6, "winex11.drv: Flush display in
+   acquire_selection()" (2026-07-15), in wine-11.14 and later development releases.
+   The NUL and leftovers: Wine's `export_utf8_string()` converts Folio's whole block
+   and trims only the NULs at its end. **Worked around** with `lib/x11-nudge.py`
+   (`docs/how-it-works.md`, "Wine 11.0 and the X clipboard"); the hint is now verified
+   (`linux-e2e.sh`). **Correction:** Chromium's Ctrl+C through noVNC does reach Folio
+   (the 2146 and 2215 briefs' trap said it did not); its copy waited for the same
+   flush. Not tried: GNOME, KDE, Wayland sessions, WSLg, the Mac (Wine's Mac driver
+   has no such buffer, by its code).
 G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw Ṝ, the
    table's letter, but every SCA face checked (ScaGoudy, ScaTimes: most of VedaBase's
    text) draws ü. Copied text has no font, so a ü typed in an SCA passage (a German
@@ -216,6 +254,13 @@ G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw 
    ignores case (it cannot count È apart from è). The maintainer's call, best after
    asking the devotee whether È turns up in text he copies; changing it is one table row
    (`lib/balaram-unicode.tsv`) and the corpus line in `tests/unicode.sh`.
+H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 on has
+   a33000a6 (Kron4ek publishes 11.14 to 11.20 as development builds), and so will 12.0,
+   due about January 2027; with it the nudges are not needed (they do no harm
+   meanwhile). Moving the Linux pin (`lib/common.sh`, `VB_WINE_*`) is the maintainer's
+   call, and it needs the whole suite re-run, the wizard driving included; 12.0 stable
+   is the natural moment. The Mac's Gcenx build uses Wine's Mac driver, which this does
+   not concern.
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
    panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
@@ -244,6 +289,13 @@ G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw 
    the tunnel even on WSL's early return; the finish phase repoints only the recent-file
    list's `File1`, so an install where VedaBase was opened before that fix, which moves
    the stale "4 Sh" entry to `File2`, keeps it (a harmless error dialog if clicked).
+   **► Added 2026-10-27:** `tests/interrupt.sh` looks 3 s after its signal, and once in
+   six runs this session a closed terminal's clean-up took longer ("a closed terminal
+   leaves no wizard or display running" failed; the code under test had not changed):
+   poll rather than sleep.
+   `vb_websockify_alive` trusts whatever process its pid file names (`kill -0`), and
+   `vb_display_stop` its pid record (a wrong one leaves Xvnc running, which `vedabase
+   stop` now reports): the shape the nudger's pid file had before the X selection.
 
 ## Where the session records are
 
@@ -256,7 +308,8 @@ cross-platform research; `wf_efcb88f5-f2e`, the review), ~~and~~
 then filled its context (its handoff was already pushed, cfd0463), and
 `8f688260-7d77-43bc-b696-04c3d156cd94` (2026-10-26) moved the work to this folder**
 **► ; `39638aaf-16e5-45b4-804f-0ea9a4936dda` (2026-10-26) was the first run from this
-folder (see below)**.
+folder (see below)** **► ; `4133d657-2db5-4198-943f-fb31b206014b` (2026-10-26) solved
+Open F**.
 ~~The first is also archived (above); the newest file in `docs/handoffs/` names what the
 second ran.~~ **► The first two are also archived (above); the 2026-10-20-0405 brief names
 what the second ran. From 2026-10-26, sessions run from this folder
