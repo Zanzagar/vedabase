@@ -187,7 +187,11 @@ public repository sees it**).
   code the same day, `doctor` passing), launcher
   `~/.local/bin/vedabase`, and `~/.config/vedabase/home` remembers the home. A
   from-scratch reinstall needs `./install.sh --home /journel/s0/$USER/vedabase`. Run
-  `vedabase doctor` before assuming it is broken. Never test against it.
+  `vedabase doctor` before assuming it is broken. Never test against it. **► Checked
+  2026-10-27 (68ae51a3, by comparing files only): its launcher copy dates from
+  2026-10-20 03:58 and has none of the 2026-10-26/27 merges (no `vedabase unicode`, no
+  nudger, the old PID files); refreshing it, by running `install.sh` again with that
+  home, is the maintainer's call.**
 - **Archive** on journel: `/journel/s1/$USER/archive/vedabase/` holds the Drive files
   (with the CrossOver guide `VedaBase_CrossOver_Installation.pdf`, which the devotee who
   shares the installers passed on, and Ekanatha's `README.docx`), a backup of the working
