@@ -138,39 +138,52 @@ vb_websockify_alive() {
   [[ -s $pidf ]] && kill -0 "$(<"$pidf")" 2>/dev/null
 }
 
+# Wine 11.0 puts a copy made in Folio on the X clipboard only when an X event
+# wakes it (lib/x11-nudge.py says why), and with no window manager nothing on
+# the viewer's display makes one, so noVNC's clipboard panel would never see a
+# copy: a nudger nudges it once a second, which costs Folio nothing measurable.
+# It holds a lock named after its display while it runs, so the kernel lets
+# one run per display, and it ends when its display does: nothing finds it by
+# PID, and a display that outlives 'vedabase stop' keeps only its own lock.
+vb_nudge_lock() { printf '%s/web/nudge-%s.lock\n' "$VB_RUN" "${1#:}"; } # DISPLAY
+vb_nudger_running() { # DISPLAY
+  local rc=0
+  flock -n -E 3 "$(vb_nudge_lock "$1")" true 2>/dev/null || rc=$?
+  ((rc == 3))
+}
+
 vb_web_start() { # GEOMETRY
   local d=$VB_RUN/web port novnc
   port=$(vb_web_port)
   vb_display_alive web || vb_web_password
   vb_display_start web "$1" VncAuth
-  # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X
-  # event wakes it (lib/x11-nudge.py says why), and with no window manager
-  # nothing on this display makes one: noVNC's clipboard panel would never
-  # see a copy. A nudge a second costs Folio nothing measurable. The nudger
-  # holds a lock while it runs, so a second one gives up at once, and it ends
-  # when the display does: nothing has to find it by PID.
-  setsid flock -n "$d/nudge.lock" python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 \
+  setsid flock -n "$(vb_nudge_lock "$DISPLAY")" python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 \
     >>"$d/nudge.log" 2>&1 </dev/null &
-  vb_websockify_alive && return 0
-  if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
-    vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
+  if ! vb_websockify_alive; then
+    if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
+      vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
+    fi
+    novnc=$(vb_novnc_dir) || vb_die "noVNC is missing; re-run install.sh"
+    # Ubuntu's websockify package targets the system python3, not pyenv/uv ones.
+    PYTHONPATH=$VB_TOOLS/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH} \
+      setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$(vb_sock web)" \
+      "127.0.0.1:$port" >"$d/websockify.log" 2>&1 </dev/null &
+    printf '%s\n' "$!" >"$d/websockify.pid"
   fi
-  novnc=$(vb_novnc_dir) || vb_die "noVNC is missing; re-run install.sh"
-  # Ubuntu's websockify package targets the system python3, not pyenv/uv ones.
-  PYTHONPATH=$VB_TOOLS/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH} \
-    setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$(vb_sock web)" \
-    "127.0.0.1:$port" >"$d/websockify.log" 2>&1 </dev/null &
-  printf '%s\n' "$!" >"$d/websockify.pid"
   sleep 1
   vb_websockify_alive || vb_die "websockify did not start; see $d/websockify.log"
+  vb_nudger_running "$DISPLAY" ||
+    vb_warn "text copied in VedaBase will not reach the browser's clipboard panel: its helper did not start (see $d/nudge.log)"
 }
 
 vb_web_stop() {
-  local pidf=$VB_RUN/web/websockify.pid
+  local pidf=$VB_RUN/web/websockify.pid display=''
   if vb_websockify_alive; then kill "$(<"$pidf")" 2>/dev/null || true; fi
   rm -f -- "$pidf"
+  if [[ -s $VB_RUN/web/display ]]; then display=$(<"$VB_RUN/web/display"); fi
   vb_display_stop web
-  # The nudger ends with the display; wait for it, so that a viewer started
-  # at once gets a nudger of its own.
-  [[ ! -e $VB_RUN/web/nudge.lock ]] || flock -w 5 "$VB_RUN/web/nudge.lock" true 2>/dev/null || true
+  # The nudger ends with its display: a lock still held means the display lives on.
+  if [[ -n $display ]] && ! flock -w 5 "$(vb_nudge_lock "$display")" true 2>/dev/null; then
+    vb_warn "the browser viewer's display $display did not stop; see $VB_RUN/web/xvnc.log"
+  fi
 }

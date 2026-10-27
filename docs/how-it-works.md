@@ -188,9 +188,13 @@ as you, with no root:
   only when an X event wakes it, and with no window manager nothing on this
   display makes one ([Text copied out of VedaBase](#text-copied-out-of-vedabase)).
   Changing a property of the root window once a second does; it cost Folio no
-  CPU time that could be measured. The nudger holds a lock (`run/web/nudge.lock`)
-  while it runs, so a second one gives up at once, and it ends when the display
-  does, so `vedabase stop` never has to find it by PID.
+  CPU time that could be measured. The nudger holds a lock named after its
+  display (`run/web/nudge-<display>.lock`) while it runs, so a second one for
+  that display gives up at once, and it ends when its display does, so
+  `vedabase stop` never has to find it by PID. `vedabase web` warns if no
+  nudger holds the lock a second after starting, and `vedabase stop` warns if
+  the lock is still held five seconds after it stopped the display: the
+  display lives on.
 
 The Linux installer uses the same kind of private display, a separate `Xvnc`,
 so the wizard never appears on anyone's screen. Where `x11-xkb-utils` is
