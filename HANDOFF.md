@@ -296,6 +296,9 @@ H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 o
    `vb_websockify_alive` trusts whatever process its pid file names (`kill -0`), and
    `vb_display_stop` its pid record (a wrong one leaves Xvnc running, which `vedabase
    stop` now reports): the shape the nudger's pid file had before the X selection.
+   Both predate session 4133d657. That report, in `vb_web_stop`, takes a probe that
+   times out (`timeout 2 xdotool`) for a display that is gone, so an Xvnc frozen
+   rather than surviving stops without the warning; no test covers it.
 
 ## Where the session records are
 
