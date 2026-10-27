@@ -129,6 +129,16 @@ clip_get() {
   esac
 }
 with_timeout() { if command -v timeout >/dev/null; then timeout 10 "$@"; else "$@"; fi; }
+# Wine 11.0 puts a copy made in Folio on the X clipboard only when something
+# wakes it (lib/x11-nudge.py says why), so until then a read gets the text
+# from before the copy. The helper wakes it and waits up to half a second for
+# the copy to arrive; without it, or without python3, the read goes ahead.
+nudge_wine() {
+  local helper
+  helper=$(cd "$(dirname "$0")/.." && pwd)/lib/x11-nudge.py || return 0
+  [[ -f $helper ]] && command -v python3 >/dev/null || return 0
+  with_timeout python3 -I "$helper" once >/dev/null 2>&1 9>&- || :
+}
 # They must not take the lock (fd 9) with them either, or it would outlive
 # the press.
 clip_put() {
@@ -178,6 +188,7 @@ convert_clipboard() {
     3) give_up 1 "Another conversion is still running. Try again in a moment." 6 ;;
     *) give_up 1 "Could not use $(dirname -- "$last") to remember the converted text, so nothing was changed." 0 ;;
   esac
+  [[ $clip != xclip ]] || nudge_wine
   # A read that fails with nothing read is an empty clipboard; one that fails
   # part way, or does not answer, must not pass for the whole text.
   clip_get >"$work/raw" || rc=$?

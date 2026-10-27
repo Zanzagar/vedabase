@@ -159,7 +159,7 @@ clipboard() {
     mkdir -p "$B/debs" "$tools"
     (cd "$B/debs" && apt-get download xclip >/dev/null 2>&1) && dpkg-deb -x "$B"/debs/xclip_*.deb "$tools"
   fi
-  for t in Xtigervnc xauth xclip; do
+  for t in Xtigervnc xauth xclip python3; do
     command -v "$t" >/dev/null || { echo "SKIP  the clipboard: no $t (VB_TEST_TOOLS=$VB_TEST_TOOLS)"; return; }
   done
   # A stand-in xclip that publishes, then lingers 2 s.
@@ -195,6 +195,21 @@ clipboard() {
   press
   got >"$B/got"; printf 'kaumāraṁ' >"$B/want"
   check "Folio's copy, NUL and leftovers included, becomes just 'kaumāraṁ'" cmp -s "$B/got" "$B/want"
+  # Wine 11.0 sends its claim on the clipboard for a copy made in Folio only
+  # when the next X event arrives for it (lib/x11-nudge.py), so a press must
+  # make one and wait for the claim; lazy-owner.py takes the clipboard so.
+  copy_in_wine() { # TEXT [--refusing-old], then wait until it is ready
+    python3 -I "$TESTS/x11/lazy-owner.py" "$@" >"$B/owner.log" 2>&1 &
+    owner=$!
+    for _ in $(seq 1 50); do grep -q '^ready' "$B/owner.log" && return 0; sleep 0.1; done
+  }
+  put 'Kṛṣṇa' # what the last press left there
+  copy_in_wine 'Çré Kåñëa'; press
+  check "a copy Wine has not yet sent to X is the one converted: 'Çré Kåñëa' becomes 'Śrī Kṛṣṇa'" test "$(got)" = 'Śrī Kṛṣṇa' -a "$status" -eq 0
+  kill "$owner" 2>/dev/null; wait "$owner" 2>/dev/null
+  copy_in_wine 'Gaìgä jïäna' --refusing-old; press
+  check "  ... also when Wine's window for the copy before refuses the first read: 'Gaṅgā jñāna'" test "$(got)" = 'Gaṅgā jñāna' -a "$status" -eq 0
+  kill "$owner" 2>/dev/null; wait "$owner" 2>/dev/null
 
   # A step that fails leaves the clipboard alone and says so (status 1).
   put 'Kåñëa'; PATH=$B/fail-sed:$PATH press
