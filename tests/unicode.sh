@@ -212,18 +212,21 @@ clipboard() {
   sleep 0.7; press; wait "$!"
   check "two presses at once leave 'yajña', never 'yajṣa'" test "$(got)" = 'yajña'
 
-  # The lock: one held by a live press is never taken over, however long it
-  # is held (busy, status 1); one left by a press that died is.
-  local cache=$B/cache-lock lockdir owner
-  lockdir=$cache/vedabase/unicode-last.lock
-  mkdir -p "$lockdir"; sleep 60 & owner=$!; echo "$owner" >"$lockdir/pid"
+  # The lock (flock): while one press holds it, the next gives up after 5 s,
+  # busy (status 1); once that press has ended, however it ended, the lock
+  # goes with it. The holder execs into sleep, so killing it frees the lock.
+  local cache=$B/cache-lock lockfile holder
+  lockfile=$cache/vedabase/unicode-last.lock
+  mkdir -p "${lockfile%/*}"
+  (exec 8>>"$lockfile" && flock 8 && exec sleep 60) &
+  holder=$!
+  sleep 0.5
   put 'Kåñëa'; XDG_CACHE_HOME=$cache press
-  check "a lock held by a live press is not taken over: busy, 'Kåñëa' stays (status 1)" test "$(got)" = 'Kåñëa' -a "$status" -eq 1
-  check "  ... and that lock is still there" test -d "$lockdir"
-  kill "$owner"; wait "$owner" 2>/dev/null
+  check "a lock held by a running press is not taken over: busy, 'Kåñëa' stays (status 1)" test "$(got)" = 'Kåñëa' -a "$status" -eq 1
+  kill "$holder"; wait "$holder" 2>/dev/null
   XDG_CACHE_HOME=$cache press
-  check "a lock left by a press that died is taken over: 'Kåñëa' becomes 'Kṛṣṇa'" test "$(got)" = 'Kṛṣṇa' -a "$status" -eq 0
-  check "  ... and the lock is gone afterwards" test ! -e "$lockdir"
+  check "once that press has ended, the next one converts: 'Kåñëa' becomes 'Kṛṣṇa'" test "$(got)" = 'Kṛṣṇa' -a "$status" -eq 0
+  check "  ... and leaves the lock free" flock -n "$lockfile" true
 
   # Failed reads stop it too: a clipboard read that fails after part of the
   # text, and a remembered checksum that cannot be read.

@@ -307,12 +307,13 @@ the rest: converted, *yajïa* reads *yajña*, all of it Latin-1. Text from
 elsewhere that holds only ñ (a Unicode *yajña* from a web page) cannot be told
 from VedaBase's, so the instructions say to convert only what was just copied
 out of VedaBase. Text with nothing to convert gives status 3. The checksum
-is written before the clipboard changes, and a lock (a directory beside the
-checksum, holding its owner's process ID; a named mutex on Windows) lets one
-press at a time read, convert and publish, so a second, quick press sees
-either the old text or the new one with its checksum. A lock whose owner is
-gone is taken over; one whose owner still runs never is, and after 5 seconds
-the press gives up as busy. If a step fails (reading the clipboard or the
+is written before the clipboard changes, so a second, quick press sees either
+the old text or the new one with its checksum. A lock also lets one press at a
+time read, convert and publish: on Linux, flock on a file beside the checksum,
+which the kernel releases when the press ends, however it ends (the xclip left
+serving the clipboard is started without it); on Windows, a named mutex. The
+Mac needs none: it runs one copy of an app at a time. A press that waits 5
+seconds for the lock gives up as busy. If a step fails (reading the clipboard or the
 checksum included), or the checksum cannot be written, the clipboard stays as
 it was and the status is 1.
 

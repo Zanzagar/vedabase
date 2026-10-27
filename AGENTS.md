@@ -86,6 +86,9 @@ matters, with the static checks before every commit:
 - Shared shell code converts bulk text with sed: bash 3.2's `${var//x/y}` is
   quadratic (260 KB did not finish in 300 s). Some BSD seds end their output
   with a newline the input lacked; `bin/vedabase-unicode` shows the fix.
+- Serialize with a lock the kernel releases (flock on Linux, a named mutex on
+  Windows), and start lingering children (xclip) with its descriptor closed
+  (`9>&-`). A hand-made mkdir/PID lock drew holes in three Codex reviews.
 - Never set Windows XP compatibility mode on `Views.exe`: on Windows 11 it makes
   every start demand administrator rights, and removing it takes a flush of the
   compatibility cache too (`Remove-OldCompatMode`).

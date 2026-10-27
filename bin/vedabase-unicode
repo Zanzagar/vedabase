@@ -12,8 +12,7 @@ set -euo pipefail
 
 VB_UNICODE_MAP=${VB_UNICODE_MAP:-$(cd "$(dirname "$0")/.." && pwd)/lib/balaram-unicode.tsv}
 work=$(mktemp -d "${TMPDIR:-/tmp}/vedabase-unicode.XXXXXX")
-locked=0
-trap 'rm -rf -- "$work"; if ((locked)); then drop_lock; fi' EXIT
+trap 'rm -rf -- "$work"' EXIT
 # Without these, Ctrl-C or a closed terminal ends the script without the EXIT trap.
 trap 'exit 130' INT
 trap 'exit 129' HUP
@@ -130,19 +129,23 @@ clip_get() {
   esac
 }
 with_timeout() { if command -v timeout >/dev/null; then timeout 10 "$@"; else "$@"; fi; }
+# They must not take the lock (fd 9) with them either, or it would outlive
+# the press.
 clip_put() {
   case $clip in
     pb) LANG=en_US.UTF-8 pbcopy ;;
-    xclip) xclip -selection clipboard -t UTF8_STRING -i >/dev/null 2>&1 ;;
-    wl) wl-copy >/dev/null 2>&1 ;;
+    xclip) xclip -selection clipboard -t UTF8_STRING -i >/dev/null 2>&1 9>&- ;;
+    wl) wl-copy >/dev/null 2>&1 9>&- ;;
   esac
 }
 
 # The text converted last is remembered (as a checksum, not the text): a
 # second press would otherwise turn the ñ of yajña into ṣ. It is written
-# before the clipboard changes, and a lock beside it lets one press at a time
-# read, convert and publish, so a second press sees either the old text or
-# the new one with its checksum.
+# before the clipboard changes, so a second press sees either the old text or
+# the new one with its checksum. On Linux a lock also lets one press at a time
+# read, convert and publish: flock's lock belongs to this process, and the
+# kernel lets it go when the press ends, however it ends. The Mac has no
+# flock, and needs none: it runs one copy of an app at a time.
 if [[ $(uname -s) == Darwin ]]; then
   last=$HOME/Library/Caches/VedaBase/unicode-last
 else
@@ -150,38 +153,15 @@ else
 fi
 lock=$last.lock
 
-# mkdir is atomic, so one press at a time holds the lock, with its process ID
-# inside. A lock whose owner is gone (a press that was killed; one with no ID
-# after a minute) is taken over, under a second lock so that two waiters
-# cannot both do it. One whose owner still runs never is: after 5 s the press
-# gives up, busy. Returns 2 if the folder cannot be written, 3 if busy.
+# Returns 2 if the folder cannot be written, 3 if another press held the lock
+# for 5 s (busy).
 take_lock() {
-  local i owner
   mkdir -p -- "$(dirname -- "$last")" 2>/dev/null || return 2
-  for ((i = 0; i < 50; i++)); do
-    if mkdir -- "$lock" 2>/dev/null; then
-      locked=1
-      echo "$$" >"$lock/pid" || return 2
-      return 0
-    fi
-    owner=$(cat -- "$lock/pid" 2>/dev/null) || owner=''
-    if { [[ -n $owner ]] && ! kill -0 "$owner" 2>/dev/null; } ||
-      { [[ -z $owner ]] && [[ -n $(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null) ]]; }; then
-      if mkdir -- "$lock.reclaim" 2>/dev/null; then
-        if [[ $(cat -- "$lock/pid" 2>/dev/null) == "$owner" ]]; then rm -rf -- "$lock"; fi
-        rmdir -- "$lock.reclaim" 2>/dev/null || :
-        continue
-      fi
-    fi
-    sleep 0.1
-  done
-  return 3
+  command -v flock >/dev/null || return 0
+  exec 9>>"$lock" || return 2
+  flock -w 5 9 || return 3
 }
-# Only ever this press's own lock.
-drop_lock() {
-  if ((locked)) && [[ $(cat -- "$lock/pid" 2>/dev/null) == "$$" ]]; then rm -rf -- "$lock"; fi
-  locked=0
-}
+drop_lock() { exec 9>&-; }
 
 # Leaves the clipboard as it was, says why, and ends with STATUS.
 give_up() { # STATUS MESSAGE SECONDS
