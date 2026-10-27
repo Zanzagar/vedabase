@@ -32,6 +32,18 @@ vb_sock() { # NAME
   printf '%s/%s-%s.sock\n' "$d" "$1" "$(printf '%s' "$VB_HOME" | cksum | cut -d' ' -f1)"
 }
 
+# Processes of this account running NAME (the kernel's name for the program)
+# with ARG, exactly, among their arguments: how the viewer's own processes are
+# found. A PID file outlives its process (a reboot with the viewer running
+# leaves one), and its PID may then belong to anything.
+vb_pids_with_arg() { # NAME ARG
+  local pid
+  for pid in $(pgrep -u "$(id -u)" -x "$1" 2>/dev/null); do
+    grep -qzxF -- "$2" "/proc/$pid/cmdline" 2>/dev/null && printf '%s\n' "$pid"
+  done
+  return 0
+}
+
 vb_display_alive() { # NAME
   local d=$VB_RUN/$1 pid
   [[ -s $d/xvnc.pid && -s $d/display ]] || return 1
@@ -133,10 +145,10 @@ vb_novnc_dir() {
   return 1
 }
 
-vb_websockify_alive() {
-  local pidf=$VB_RUN/web/websockify.pid
-  [[ -s $pidf ]] && kill -0 "$(<"$pidf")" 2>/dev/null
-}
+# websockify for this home's viewer, and the copies of it that serve
+# connections: their --unix-target is this home's socket.
+vb_websockify_pids() { vb_pids_with_arg python3 "--unix-target=$(vb_sock web)"; }
+vb_websockify_alive() { [[ -n $(vb_websockify_pids) ]]; }
 
 # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X event
 # wakes it (lib/x11-nudge.py says why), and with no window manager nothing on
@@ -172,7 +184,6 @@ vb_web_start() { # GEOMETRY
     PYTHONPATH=$VB_TOOLS/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH} \
       setsid /usr/bin/python3 -m websockify --web "$novnc" --unix-target="$(vb_sock web)" \
       "127.0.0.1:$port" >"$d/websockify.log" 2>&1 </dev/null &
-    printf '%s\n' "$!" >"$d/websockify.pid"
   fi
   sleep 1
   vb_websockify_alive || vb_die "websockify did not start; see $d/websockify.log"
@@ -180,9 +191,11 @@ vb_web_start() { # GEOMETRY
 }
 
 vb_web_stop() {
-  local pidf=$VB_RUN/web/websockify.pid display='' i
-  if vb_websockify_alive; then kill "$(<"$pidf")" 2>/dev/null || true; fi
-  rm -f -- "$pidf"
+  local pids display='' i
+  pids=$(vb_websockify_pids)
+  # shellcheck disable=SC2086 # one PID a word
+  [[ -z $pids ]] || kill $pids 2>/dev/null || true
+  rm -f -- "$VB_RUN/web/websockify.pid" # earlier versions kept one
   if [[ -s $VB_RUN/web/display ]]; then display=$(<"$VB_RUN/web/display"); fi
   vb_display_stop web
   # The nudger ends with the display. A display that still answers 5 s later

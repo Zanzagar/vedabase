@@ -107,6 +107,22 @@ check "stop ends the nudger" test -z "$(nudgers "$display")"
 check "  ... and leaves a process that only names it alone" kill -0 "$decoy"
 kill "$decoy"; wait "$decoy" 2>/dev/null
 rm -f -- "$VH/run/web/nudge.pid"
+# websockify.pid, which earlier versions kept, outlives websockify (a reboot
+# with the viewer running leaves it), and its PID may then belong to anything:
+# 'vedabase web' must serve the page all the same, and 'vedabase stop' must
+# take the page down and leave that process alone.
+sleep 300 &
+reused=$!
+printf '%s\n' "$reused" >"$VH/run/web/websockify.pid"
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-stale-pid.out" 2>&1
+page=$(curl -s --noproxy '*' -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/vnc.html")
+check "behind a stale websockify.pid, 'vedabase web' still serves the page (HTTP $page)" test "$page" = 200
+printf '%s\n' "$reused" >"$VH/run/web/websockify.pid"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+check "  ... 'vedabase stop' takes the page down all the same" test -z "$(ss -Htln "sport = :$PORT")"
+check "  ... and leaves the process that file names alone" kill -0 "$reused"
+kill "$reused"; wait "$reused" 2>/dev/null
+rm -f -- "$VH/run/web/websockify.pid"
 # A nudger that fails after starting (here: after 2 s) is reported, and the
 # next 'vedabase web' starts one in its place.
 mkdir -p "$B/late-python"
