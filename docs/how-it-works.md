@@ -171,13 +171,20 @@ as you, with no root:
     5900+N on every interface, as the first test run showed.
   - *Requirement:* it needs `xkbcomp` at `/usr/bin` (packages `x11-xkb-utils`
     and `xkb-data`), because the keymap compiler's path is compiled in.
+  - *Finding it again:* `vedabase stop` ends every `Xtigervnc` of your
+    account whose arguments name this installation's socket. The PID it
+    records is never trusted on its own: the record outlives the process (a
+    reboot leaves it), and the number may then belong to another program,
+    even another Xvnc.
 - **websockify + noVNC**, also unpacked from Ubuntu packages. websockify is
   started with the system `/usr/bin/python3`, because the package is built for
   it. It listens on `127.0.0.1:6080`. A localhost port is open to every user
   of the machine, so a VNC password keeps the others out. The password is
   new each time the viewer starts, 48 bits, so failed logins are not locked
   out (`-UseBlacklist=0`): the lockout would let any local user lock you out
-  through that port, and there is nothing to guess.
+  through that port, and there is nothing to guess. `vedabase web` and
+  `vedabase stop` find websockify the same way as Xvnc, by the socket its
+  `--unix-target` names; no PID file is kept.
 - **A Wine virtual desktop** (`explorer /desktop=VedaBase,1600x1000`). With no
   window manager, Folio's window would have no frame, so it couldn't be moved
   or maximized. Folio also doesn't maximize itself under Wine, so
