@@ -149,7 +149,9 @@ check "  ... and leaves the process the record names alone, though it is called 
 kill "$namesake"; wait "$namesake" 2>/dev/null
 # A display that outlives 'vedabase stop' is reported, even one that does not
 # answer (here its Xvnc held up with SIGSTOP, so that it cannot act on the
-# signal), and the next viewer gets a nudger all the same.
+# signal). While it is there, 'vedabase web' starts no other display, whose
+# record would leave it out of every later stop; once it has gone, the next
+# viewer gets a nudger of its own.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-survivor.out" 2>&1
 survivor=$(cat "$VH/run/web/xvnc.pid") old_display=$(<"$VH/run/web/display")
 hold "$survivor"
@@ -158,9 +160,15 @@ run "$H/.local/bin/vedabase" stop >"$B/stop-survivor.out" 2>&1
 echo "      (stop took $((SECONDS - started)) s)"
 check "a display that outlives stop is reported, though it does not answer" grep -q 'did not stop' "$B/stop-survivor.out"
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web4.out" 2>&1
-check "  ... and the next viewer gets a nudger of its own" nudger_up
+rc=$?
+check "  ... 'vedabase web' starts no other display while it is there, naming it (exit $rc)" \
+  test "$rc" -ne 0 -a "$(grep -cw -- "$survivor" "$B/web4.out")" -ge 1
+run "$H/.local/bin/vedabase" stop >"$B/stop-survivor-again.out" 2>&1
+check "  ... and a later stop still reports it" grep -qw -- "$survivor" "$B/stop-survivor-again.out"
 kill -CONT "$survivor"; sleep 1
-check "  ... while the survivor's ends with the survivor" test -z "$(nudgers "$old_display")"
+check "  ... the survivor's nudger ends with the survivor" test -z "$(nudgers "$old_display")"
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-after-survivor.out" 2>&1
+check "  ... and once it has gone, the next viewer gets a nudger of its own" nudger_up
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # The home spelled another way (here with a trailing slash) is the same home:
 # 'vedabase status' sees its Wine, and 'vedabase stop' closes Wine first, as
@@ -238,6 +246,31 @@ VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-copy-again.out
 page=$(curl -s --noproxy '*' --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/vnc.html")
 check "  ... and with Folio closed there, 'vedabase web' serves the page again (HTTP $page)" test "$page" = 200
 exec 7>&-
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# A page server that outlives its display (here websockify held up with
+# SIGSTOP, then its Xvnc killed): 'vedabase web' starts no new display, whose
+# record would leave it out of every later stop, and names it instead; and
+# 'vedabase stop' still finds it.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-held-ws.out" 2>&1
+held_ws=$(ws_server)
+check "  (websockify's server is found)" test -n "$held_ws"
+# shellcheck disable=SC2086 # one PID a word
+hold $held_ws
+kill -KILL "$(cat "$VH/run/web/xvnc.pid")"
+for _ in $(seq 1 20); do [[ $(prefix_procs "$VH/prefix") -eq 0 ]] && break; sleep 0.5; done
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-held-ws-again.out" 2>&1
+rc=$?
+check "with an earlier page server that will not stop, 'vedabase web' fails, naming it (exit $rc)" \
+  test "$rc" -ne 0 -a "$(grep -cw -- "$held_ws" "$B/web-held-ws-again.out")" -ge 1
+run "$H/.local/bin/vedabase" stop >"$B/stop-held-ws.out" 2>&1
+check "  ... and 'vedabase stop' still finds it" grep -qw -- "$held_ws" "$B/stop-held-ws.out"
+# shellcheck disable=SC2086 # one PID a word
+kill -CONT $held_ws
+for _ in $(seq 1 25); do [[ -z $(ws_server) ]] && break; sleep 0.2; done
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-held-ws-last.out" 2>&1
+rc=$?
+page=$(curl -s --noproxy '*' --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/vnc.html")
+check "  ... once it has gone, 'vedabase web' starts the viewer again (exit $rc, HTTP $page)" test "$rc" -eq 0 -a "$page" = 200
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # One command at a time changes the viewer: one that finds another holding the
 # lock (here the test, for 3 s) waits for it, and what 'vedabase web' leaves

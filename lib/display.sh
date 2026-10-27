@@ -72,17 +72,21 @@ vb_display_use() { # NAME: point DISPLAY/XAUTHORITY at it
 
 # vb_display_start NAME GEOMETRY SECURITY   (SECURITY: None or VncAuth)
 vb_display_start() {
-  local name=$1 geom=$2 sec=$3 d=$VB_RUN/$1 n='' i sock cookie pid
+  local name=$1 geom=$2 sec=$3 d=$VB_RUN/$1 n='' i sock cookie pid left
   mkdir -p "$d"
   chmod 700 "$VB_RUN" "$d"
   if vb_display_alive "$name"; then
     vb_display_use "$name"
     return 0
   fi
-  # What an earlier display of NAME left goes while its record names it. The
-  # new display gets a socket of its own, so that no record of an earlier one
-  # (stale, or in a home since moved) can name its processes.
+  # What an earlier display of NAME left goes while its record names it, and
+  # an Xvnc that will not go (hung, or held up) keeps the record: replaced, it
+  # would leave that Xvnc out of every later stop. The new display gets a
+  # socket of its own, so that no record of an earlier one (stale, or in a
+  # home since moved) can name its processes.
   vb_display_stop "$name"
+  left=$(vb_display_gone "$name") ||
+    vb_die "an earlier VedaBase display did not stop (Xtigervnc, PID $left); end it, for example with: kill -9 $left"
   sock=$(vb_sock "$name")
   sock=${sock%.sock}-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n').sock
   rm -f -- "$d/xauth"
@@ -143,6 +147,19 @@ vb_display_stop() { # NAME
   rm -f -- "$d/xvnc.pid" "$d/display" "$d/displayfd" "$(vb_display_sock "$1")"
 }
 
+# Waits up to 5 s for display NAME's Xvnc to go. If any is still there (hung,
+# or held up), prints its PIDs and returns 1.
+vb_display_gone() { # NAME
+  local pids i
+  for i in {1..25}; do
+    pids=$(vb_display_pids "$1")
+    [[ -n $pids ]] || return 0
+    sleep 0.2
+  done
+  printf '%s\n' "$pids" | paste -sd' ' -
+  return 1
+}
+
 # --- browser viewer -------------------------------------------------------------
 
 vb_web_port() { printf '%s\n' "${VEDABASE_WEB_PORT:-6080}"; }
@@ -180,7 +197,8 @@ vb_websockify_alive() {
   return 1
 }
 # Ends websockify and its copies, and waits up to 5 s for them to go, and so
-# for the port they hold to come free.
+# for the port they hold to come free. If any is still there (hung, or held
+# up), prints its PIDs and returns 1.
 vb_websockify_stop() {
   local pids i
   pids=$(vb_websockify_pids)
@@ -188,9 +206,12 @@ vb_websockify_stop() {
   # shellcheck disable=SC2086 # one PID a word
   kill $pids 2>/dev/null || true
   for i in {1..25}; do
-    [[ -n $(vb_websockify_pids) ]] || return 0
+    pids=$(vb_websockify_pids)
+    [[ -n $pids ]] || return 0
     sleep 0.2
   done
+  printf '%s\n' "$pids" | paste -sd' ' -
+  return 1
 }
 
 # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X event
@@ -214,17 +235,20 @@ vb_nudger_ensure() {
 }
 
 vb_web_start() { # GEOMETRY
-  local d=$VB_RUN/web port novnc
+  local d=$VB_RUN/web port novnc left
   port=$(vb_web_port)
   if ! vb_display_alive web; then
     # The websockify of an earlier display goes before the new display's
-    # record replaces the one that names it.
-    vb_websockify_stop
+    # record replaces the one that names it; one that will not go keeps it.
+    left=$(vb_websockify_stop) ||
+      vb_die "the browser viewer's earlier page server did not stop (websockify, PID $left); end it, for example with: kill -9 $left"
     vb_web_password
   fi
   vb_display_start web "$1" VncAuth
   if ! vb_websockify_alive; then
-    vb_websockify_stop # copies left by a server that died hold its port, serving no one new
+    # Copies left by a server that died hold its port, serving no one new.
+    left=$(vb_websockify_stop) ||
+      vb_die "copies of the browser viewer's page server did not stop (websockify, PID $left); end them, for example with: kill -9 $left"
     if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
       vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
     fi
@@ -240,18 +264,16 @@ vb_web_start() { # GEOMETRY
 }
 
 vb_web_stop() {
-  local pids display='' i
-  vb_websockify_stop
+  local display='' left
+  left=$(vb_websockify_stop) ||
+    vb_warn "the browser viewer's page server did not stop (websockify, PID $left)"
   rm -f -- "$VB_RUN/web/websockify.pid" # earlier versions kept one
   if [[ -s $VB_RUN/web/display ]]; then display=$(<"$VB_RUN/web/display"); fi
   vb_display_stop web
   # The nudger ends with the display. An Xvnc of it still there 5 s later
   # lives on, whether it answers or not (one held up or hung cannot act on
-  # the signal, nor reply to a question).
-  for i in {1..25}; do
-    pids=$(vb_display_pids web)
-    [[ -n $pids ]] || return 0
-    sleep 0.2
-  done
-  vb_warn "the browser viewer's display${display:+ $display} did not stop (Xtigervnc, PID $(printf '%s\n' "$pids" | paste -sd' ' -)); see $VB_RUN/web/xvnc.log"
+  # the signal, nor reply to a question); the socket's record stays, so that
+  # the next stop finds it again.
+  left=$(vb_display_gone web) ||
+    vb_warn "the browser viewer's display${display:+ $display} did not stop (Xtigervnc, PID $left); see $VB_RUN/web/xvnc.log"
 }
