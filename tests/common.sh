@@ -33,6 +33,29 @@ isolate() { # H
   unset VEDABASE_HOME VEDABASE_SOURCE VEDABASE_INSTALL_DISPLAY WSL_DISTRO_NAME
 }
 
+# However a test ends (Ctrl-C, a closed terminal, kill, or its own end), it
+# resumes what it holds up with 'hold', ends its own background jobs (the
+# shell's job list: no PID to go stale), removes its display's socket, and runs
+# what it gave 'at_exit'. A process left stopped keeps its display and blocks
+# its clients. The INT/HUP/TERM traps exit, so that the EXIT trap runs.
+_vb_held=() _vb_exit_hooks=()
+hold() { kill -STOP "$@" && _vb_held+=("$@"); } # PID...
+at_exit() { _vb_exit_hooks+=("$1"); }           # COMMAND, as one string
+_vb_on_exit() {
+  local hook jobs
+  ((${#_vb_held[@]} == 0)) || kill -CONT "${_vb_held[@]}" 2>/dev/null
+  for hook in ${_vb_exit_hooks[@]+"${_vb_exit_hooks[@]}"}; do eval "$hook"; done
+  jobs=$(jobs -p)
+  # shellcheck disable=SC2086 # one PID a word
+  [[ -z $jobs ]] || kill $jobs 2>/dev/null
+  [[ -z ${_vb_sock:-} ]] || rm -f -- "$_vb_sock"
+  return 0
+}
+trap _vb_on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
+
 fails=0
 pass() { printf 'PASS  %s\n' "$*"; }
 fail() { printf 'FAIL  %s\n' "$*"; fails=$((fails + 1)); }

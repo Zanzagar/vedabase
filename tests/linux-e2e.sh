@@ -9,6 +9,9 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/linux-e2e H=$B/home VH=$B/vb PORT=${VB_TEST_PORT:-6091}
 rm -rf -- "$B"; mkdir -p "$H"; chmod 700 "$B"
 isolate "$H"
+# An interrupted run stops its viewer and its Wine too.
+# shellcheck disable=SC2016 # expanded when the test ends
+at_exit '[[ ! -x $H/.local/bin/vedabase ]] || HOME=$H "$H/.local/bin/vedabase" stop >/dev/null 2>&1'
 run() { HOME=$H "$@"; }
 mapfile -t src < <(source_args)
 cd "$REPO" || exit 1
@@ -133,7 +136,8 @@ VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1
 first=$(<"$VH/run/web/display")
 held=$(nudgers "$first")
 check "  (a nudger to hold up is found)" test -n "$held"
-for p in $held; do kill -STOP "$p"; done
+# shellcheck disable=SC2086 # one PID a word
+hold $held
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web6.out" 2>&1
 echo "      display $first, then $(<"$VH/run/web/display")"
@@ -148,7 +152,7 @@ run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web7.out" 2>&1
 xvnc=$(cat "$VH/run/web/xvnc.pid")
 sleep 5 # Folio opening, so that the viewer counts as running
-kill -STOP "$xvnc"
+hold "$xvnc"
 started=$SECONDS
 VEDABASE_WEB_PORT=$PORT timeout 60 env HOME="$H" "$H/.local/bin/vedabase" web >"$B/web-stalled.out" 2>&1
 took=$((SECONDS - started))

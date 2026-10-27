@@ -44,7 +44,7 @@ wait "$rival"
 # started here by hand at it, has no owner and gets a nudger of its own.
 start_nudger "$B/held.log"; held=$nudger
 n=${DISPLAY#:}
-kill -STOP "$held"
+hold "$held"
 stop_display
 for _ in $(seq 1 25); do [[ -e /tmp/.X11-unix/X$n || -e /tmp/.X$n-lock ]] || break; sleep 0.2; done
 _vb_sock=$(mktemp -u /tmp/vedabase-test-XXXXXXXX.sock)
