@@ -37,6 +37,23 @@ public repository sees it**).
   correspondence, and news in it about the Drive folders' maintainer, are in the
   maintainer's private notes (Claude's memory for this folder), since this repository is
   public. What follows from them: "Open, in order", A–C.
+- **► 2026-10-26, session 39638aaf (the first run from this folder):** the five files
+  were read (private notes in the archive). The maintainer decided Open A (a converter
+  for text copied out of VedaBase, in all three installers) and the factual half of
+  Open B (3449587). **The converter is finished on the local branch `unicode/converter`**
+  (journel's clone only: it carries the 31-letter table, which waits for the devotee's
+  yes; a bundle of it lies beside the private notes): `bin/vedabase-unicode` (Linux,
+  macOS; `vedabase unicode`), `windows/vedabase-unicode.ps1` (Ctrl+Alt+U), the Mac app
+  *VedaBase Unicode*, the Linux menu entry, `lib/balaram-unicode.tsv`, and
+  `tests/unicode.sh`. On the branch, `unicode.sh` (198 checks) and `mac-sim.sh` (16) pass
+  on its tip, and `linux-e2e.sh` (40, the browser checks included) passed before the two
+  fixes below. Codex (gpt-6-astra) reviewed it three times: a failed step passing for
+  success and a quick second press converting twice (both re-derived, fixed: 5a4124e);
+  then a lock taken from a still-running press and unchecked reads (re-derived, fixed:
+  621cdbd); the third found the lock itself still unsound (a reclaim that can take a
+  fresh lock, a reclaim guard a kill can strand, a stale PID reused by another process),
+  **open: do not merge before it is answered** (proposal in the 2026-10-26-2146 brief).
+  Never run on Windows or a Mac.
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -173,6 +190,16 @@ D. ~~**A stale line in the README:** "What's next" says the installers "already 
 E. **The merged branch `review/verdict-followups`** is still on GitHub and in journel's
    clone; deleting it needs the maintainer's OK (`.claude/settings.json` asks before a
    remote delete).
+F. **Copying text out of Folio under Wine** (found 2026-10-26). In
+   the browser viewer's display (Xvnc, a Wine virtual desktop, no window manager), a
+   word copied in Folio reached the X clipboard in one session of five. Folio offers its
+   text on request only (`SetClipboardData` with no data, for "Folio Document Format"
+   and CF_TEXT); Wine logged `acquire_selection`, yet the X server showed no owner of
+   CLIPBOARD, and Wine's log had no X error. When the text did arrive, a NUL and
+   leftovers of Folio's buffer followed it. Not tried: a Linux desktop with a window
+   manager (`vedabase open`), the Mac. Next: try those; trace the X protocol around
+   `acquire_selection`; look for a Wine bug. Meanwhile `vedabase web`'s hint "Copy text
+   out through the clipboard tab on the noVNC side panel" is unverified.
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
    panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
@@ -211,7 +238,9 @@ built everything (workflows `wf_f94b032d-525`, Wine research; `wf_fdb69b90-1be`,
 cross-platform research; `wf_efcb88f5-f2e`, the review), ~~and~~
 `7dc8950f-ca3e-4233-be0f-553ad6a93b38` closed the review **► and relayed the Windows runs,
 then filled its context (its handoff was already pushed, cfd0463), and
-`8f688260-7d77-43bc-b696-04c3d156cd94` (2026-10-26) moved the work to this folder**.
+`8f688260-7d77-43bc-b696-04c3d156cd94` (2026-10-26) moved the work to this folder**
+**► ; `39638aaf-16e5-45b4-804f-0ea9a4936dda` (2026-10-26) was the first run from this
+folder (see below)**.
 ~~The first is also archived (above); the newest file in `docs/handoffs/` names what the
 second ran.~~ **► The first two are also archived (above); the 2026-10-20-0405 brief names
 what the second ran. From 2026-10-26, sessions run from this folder
