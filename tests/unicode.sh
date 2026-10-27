@@ -139,4 +139,45 @@ EOF
     check "  ... byte for byte" cmp -s "$f.bash" "$f.pwsh"
   done
 fi
+
+# The clipboard on Linux, on a private X display, as the menu entry and
+# 'vedabase unicode' use it: xclip reads it and writes it back. xclip comes
+# from VB_TEST_TOOLS or PATH, or is fetched here as the installer does.
+clipboard() {
+  local tools=$B/tools
+  export PATH=$VB_TEST_TOOLS/usr/bin:$tools/usr/bin:$PATH
+  export LD_LIBRARY_PATH=$VB_TEST_TOOLS/usr/lib/x86_64-linux-gnu:$tools/usr/lib/x86_64-linux-gnu
+  if ! command -v xclip >/dev/null; then
+    mkdir -p "$B/debs" "$tools"
+    (cd "$B/debs" && apt-get download xclip >/dev/null 2>&1) && dpkg-deb -x "$B"/debs/xclip_*.deb "$tools"
+  fi
+  for t in Xtigervnc xauth xclip; do
+    command -v "$t" >/dev/null || { echo "SKIP  the clipboard: no $t (VB_TEST_TOOLS=$VB_TEST_TOOLS)"; return; }
+  done
+  start_display "$B/x" || { fail "a private X display starts"; return; }
+  # No desktop notifications from here, and the remembered result in $B.
+  unset WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS
+  export XDG_RUNTIME_DIR=$B/run XDG_CACHE_HOME=$B/cache
+  mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"
+  put() { printf '%s' "$1" | xclip -selection clipboard -t UTF8_STRING -i >/dev/null 2>&1; }
+  got() { xclip -selection clipboard -t UTF8_STRING -o 2>/dev/null; }
+  press() { "$REPO/bin/vedabase-unicode" >"$B/press.log" 2>&1 && status=0 || status=$?; }
+
+  put 'Çré Kåñëa'; press
+  check "the clipboard's 'Çré Kåñëa' becomes 'Śrī Kṛṣṇa'" test "$(got)" = 'Śrī Kṛṣṇa'
+  check "  ... with status 0, and it says so" test "$status" -eq 0 -a -s "$B/press.log"
+  press
+  check "pressing it again leaves 'Śrī Kṛṣṇa' as it is (status 4)" test "$(got)" = 'Śrī Kṛṣṇa' -a "$status" -eq 4
+  # Converted, yajïa holds nothing outside Windows-1252, so only the
+  # remembered result stops a second press from making yajṣa of it.
+  put 'yajïa'; press
+  check "the clipboard's 'yajïa' becomes 'yajña'" test "$(got)" = 'yajña' -a "$status" -eq 0
+  press
+  check "pressing it again does not make 'yajṣa' of it (status 4)" test "$(got)" = 'yajña' -a "$status" -eq 4
+  check "  ... and says it has just converted this text" grep -q 'just converted' "$B/press.log"
+  put 'Hare Krishna'; press
+  check "text with nothing to convert stays (status 3)" test "$(got)" = 'Hare Krishna' -a "$status" -eq 3
+  stop_display
+}
+clipboard
 finish

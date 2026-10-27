@@ -55,3 +55,23 @@ prefix_procs() { # PREFIX
 }
 # Xvnc servers started for the VEDABASE_HOME given (their -auth file is in it).
 home_xvncs() { pgrep -u "$(id -u)" -f "Xtigervnc.*-auth $1/" | wc -l; }
+
+# A private X display (TigerVNC's Xvnc, no network, no password: only this
+# account can reach it). Sets DISPLAY and XAUTHORITY; stop_display ends it.
+# Needs Xtigervnc and xauth, from VB_TEST_TOOLS or PATH.
+start_display() { # DIR
+  local d='' cookie
+  mkdir -p "$1"; chmod 700 "$1"; : >"$1/xauth"; : >"$1/displayfd"
+  cookie=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+  printf 'add :0 . %s\n' "$cookie" | xauth -q -f "$1/xauth" source -
+  _vb_sock=$(mktemp -u /tmp/vedabase-test-XXXXXXXX.sock)
+  setsid Xtigervnc -displayfd 3 3>"$1/displayfd" -auth "$1/xauth" -geometry 1024x768 -depth 24 \
+    -rfbport -1 -localhost -rfbunixpath "$_vb_sock" -rfbunixmode 0600 -nolisten tcp -SecurityTypes None \
+    >"$1/xvnc.log" 2>&1 </dev/null &
+  _vb_xpid=$!
+  for _ in $(seq 1 50); do d=$(tr -dc 0-9 <"$1/displayfd"); [[ -n $d ]] && break; sleep 0.2; done
+  [[ -n $d ]] || return 1
+  printf 'add :%s . %s\n' "$d" "$cookie" | xauth -q -f "$1/xauth" source -
+  export DISPLAY=:$d XAUTHORITY=$1/xauth
+}
+stop_display() { kill "$_vb_xpid" 2>/dev/null; rm -f -- "$_vb_sock"; }
