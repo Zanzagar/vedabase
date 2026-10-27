@@ -211,6 +211,32 @@ clipboard() {
   PATH=$B/slow-xclip:$PATH press &
   sleep 0.7; press; wait "$!"
   check "two presses at once leave 'yajña', never 'yajṣa'" test "$(got)" = 'yajña'
+
+  # The lock: one held by a live press is never taken over, however long it
+  # is held (busy, status 1); one left by a press that died is.
+  local cache=$B/cache-lock lockdir owner
+  lockdir=$cache/vedabase/unicode-last.lock
+  mkdir -p "$lockdir"; sleep 60 & owner=$!; echo "$owner" >"$lockdir/pid"
+  put 'Kåñëa'; XDG_CACHE_HOME=$cache press
+  check "a lock held by a live press is not taken over: busy, 'Kåñëa' stays (status 1)" test "$(got)" = 'Kåñëa' -a "$status" -eq 1
+  check "  ... and that lock is still there" test -d "$lockdir"
+  kill "$owner"; wait "$owner" 2>/dev/null
+  XDG_CACHE_HOME=$cache press
+  check "a lock left by a press that died is taken over: 'Kåñëa' becomes 'Kṛṣṇa'" test "$(got)" = 'Kṛṣṇa' -a "$status" -eq 0
+  check "  ... and the lock is gone afterwards" test ! -e "$lockdir"
+
+  # Failed reads stop it too: a clipboard read that fails after part of the
+  # text, and a remembered checksum that cannot be read.
+  mkdir -p "$B/broken-xclip"
+  printf '#!/bin/sh\ncase " $* " in *" -o "*) printf Kåñ; exit 1 ;; esac\nexec %s "$@"\n' "$(command -v xclip)" >"$B/broken-xclip/xclip"
+  chmod +x "$B/broken-xclip/xclip"
+  put 'Kåñëa Caitanya'; PATH=$B/broken-xclip:$PATH press
+  check "a clipboard read that fails part way changes nothing (status 1)" test "$(got)" = 'Kåñëa Caitanya' -a "$status" -eq 1
+  put 'yajïa'; press
+  chmod 000 "$XDG_CACHE_HOME/vedabase/unicode-last"
+  press
+  check "with the remembered checksum unreadable, 'yajña' stays (status 1)" test "$(got)" = 'yajña' -a "$status" -eq 1
+  chmod 600 "$XDG_CACHE_HOME/vedabase/unicode-last"
   stop_display
 }
 clipboard

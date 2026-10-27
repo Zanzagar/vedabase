@@ -308,10 +308,13 @@ elsewhere that holds only ñ (a Unicode *yajña* from a web page) cannot be told
 from VedaBase's, so the instructions say to convert only what was just copied
 out of VedaBase. Text with nothing to convert gives status 3. The checksum
 is written before the clipboard changes, and a lock (a directory beside the
-checksum; a named mutex on Windows) lets one press at a time read, convert
-and publish, so a second, quick press sees either the old text or the new one
-with its checksum. If a step fails, or the checksum cannot be written, the
-clipboard stays as it was and the status is 1.
+checksum, holding its owner's process ID; a named mutex on Windows) lets one
+press at a time read, convert and publish, so a second, quick press sees
+either the old text or the new one with its checksum. A lock whose owner is
+gone is taken over; one whose owner still runs never is, and after 5 seconds
+the press gives up as busy. If a step fails (reading the clipboard or the
+checksum included), or the checksum cannot be written, the clipboard stays as
+it was and the status is 1.
 
 **Bytes.** Everything but the 31 letters comes through as it was, line ends
 included. Some BSD seds end their output with a newline the input lacked, so

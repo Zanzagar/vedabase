@@ -13,7 +13,7 @@ set -euo pipefail
 VB_UNICODE_MAP=${VB_UNICODE_MAP:-$(cd "$(dirname "$0")/.." && pwd)/lib/balaram-unicode.tsv}
 work=$(mktemp -d "${TMPDIR:-/tmp}/vedabase-unicode.XXXXXX")
 locked=0
-trap 'rm -rf -- "$work"; if ((locked)); then rmdir -- "$lock" 2>/dev/null; fi' EXIT
+trap 'rm -rf -- "$work"; if ((locked)); then drop_lock; fi' EXIT
 # Without these, Ctrl-C or a closed terminal ends the script without the EXIT trap.
 trap 'exit 130' INT
 trap 'exit 129' HUP
@@ -120,14 +120,16 @@ note() { # MESSAGE SECONDS (0: until closed)
 }
 
 # xclip and wl-copy stay in the background to hand the text over, so they
-# must not hold this script's output open.
+# must not hold this script's output open. A program holding the clipboard
+# that does not answer would leave a read hanging: timeout (Linux) ends it.
 clip_get() {
   case $clip in
     pb) LANG=en_US.UTF-8 pbpaste ;;
-    xclip) xclip -selection clipboard -t UTF8_STRING -o 2>/dev/null ;;
-    wl) wl-paste --no-newline 2>/dev/null ;;
+    xclip) with_timeout xclip -selection clipboard -t UTF8_STRING -o 2>/dev/null ;;
+    wl) with_timeout wl-paste --no-newline 2>/dev/null ;;
   esac
 }
+with_timeout() { if command -v timeout >/dev/null; then timeout 10 "$@"; else "$@"; fi; }
 clip_put() {
   case $clip in
     pb) LANG=en_US.UTF-8 pbcopy ;;
@@ -148,21 +150,36 @@ else
 fi
 lock=$last.lock
 
-# mkdir is atomic; a lock older than a press could take (5 s) was left by one
-# that died, and is broken.
+# mkdir is atomic, so one press at a time holds the lock, with its process ID
+# inside. A lock whose owner is gone (a press that was killed; one with no ID
+# after a minute) is taken over, under a second lock so that two waiters
+# cannot both do it. One whose owner still runs never is: after 5 s the press
+# gives up, busy. Returns 2 if the folder cannot be written, 3 if busy.
 take_lock() {
-  local i=0
-  mkdir -p -- "$(dirname -- "$last")" 2>/dev/null || return 1
-  until mkdir -- "$lock" 2>/dev/null; do
-    i=$((i + 1))
-    if ((i == 50)); then rm -rf -- "$lock"; fi
-    ((i < 60)) || return 1
+  local i owner
+  mkdir -p -- "$(dirname -- "$last")" 2>/dev/null || return 2
+  for ((i = 0; i < 50; i++)); do
+    if mkdir -- "$lock" 2>/dev/null; then
+      locked=1
+      echo "$$" >"$lock/pid" || return 2
+      return 0
+    fi
+    owner=$(cat -- "$lock/pid" 2>/dev/null) || owner=''
+    if { [[ -n $owner ]] && ! kill -0 "$owner" 2>/dev/null; } ||
+      { [[ -z $owner ]] && [[ -n $(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null) ]]; }; then
+      if mkdir -- "$lock.reclaim" 2>/dev/null; then
+        if [[ $(cat -- "$lock/pid" 2>/dev/null) == "$owner" ]]; then rm -rf -- "$lock"; fi
+        rmdir -- "$lock.reclaim" 2>/dev/null || :
+        continue
+      fi
+    fi
     sleep 0.1
   done
-  locked=1
+  return 3
 }
+# Only ever this press's own lock.
 drop_lock() {
-  if ((locked)); then rmdir -- "$lock" 2>/dev/null || :; fi
+  if ((locked)) && [[ $(cat -- "$lock/pid" 2>/dev/null) == "$$" ]]; then rm -rf -- "$lock"; fi
   locked=0
 }
 
@@ -174,16 +191,30 @@ give_up() { # STATUS MESSAGE SECONDS
 }
 
 convert_clipboard() {
-  local status=0 text=''
+  local status=0 rc=0 text='' remembered='' current
   pick_clipboard
-  take_lock || give_up 1 "Could not use $(dirname -- "$last") to remember the converted text, so nothing was changed." 0
+  take_lock || case $? in
+    3) give_up 1 "Another conversion is still running. Try again in a moment." 6 ;;
+    *) give_up 1 "Could not use $(dirname -- "$last") to remember the converted text, so nothing was changed." 0 ;;
+  esac
+  # A read that fails with nothing read is an empty clipboard; one that fails
+  # part way, or does not answer, must not pass for the whole text.
+  clip_get >"$work/raw" || rc=$?
+  if ((rc == 124)); then give_up 1 "The clipboard did not answer, so nothing was changed. Try again." 0; fi
+  if ((rc)) && [[ -s $work/raw ]]; then give_up 1 "Could not read the whole clipboard, so nothing was changed." 0; fi
   # Windows programs read text up to its first NUL. Folio's copy, as Wine
   # hands it over, goes on past one with whatever followed in Folio's buffer.
-  clip_get >"$work/raw" || :
   IFS= read -r -d '' text <"$work/raw" || :
   printf '%s' "$text" >"$work/in" || give_up 1 "$(message 1)" 0
-  if [[ -s $work/in && -s $last && $(cksum <"$work/in") == "$(cat -- "$last")" ]]; then
-    give_up 4 "Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert." 6
+  # No checksum yet is fine; one that cannot be read is not.
+  if [[ -e $last ]]; then
+    remembered=$(cat -- "$last") || give_up 1 "Could not read what it converted last ($last), so nothing was changed." 0
+  fi
+  if [[ -s $work/in && -n $remembered ]]; then
+    current=$(cksum <"$work/in") || give_up 1 "$(message 1)" 0
+    if [[ $current == "$remembered" ]]; then
+      give_up 4 "Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert." 6
+    fi
   fi
   convert "$work/in" "$work/out" || status=$?
   case $status in
