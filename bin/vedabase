@@ -224,8 +224,30 @@ logs      $VB_LOGS
 EOF
 }
 
+# 'open', 'web' and 'stop' change what runs for this installation, one at a
+# time: two at once could each take what the other had just started for
+# leftovers. flock(1) holds the lock while the command runs and lets it go
+# when the command ends; -o keeps it out of what the command leaves running
+# (Xvnc, websockify, Wine), which outlives it.
+with_lock() { # ARGS...: this script again, with ARGS, under the lock
+  local rc=0
+  if [[ -n ${VB_LOCKED:-} ]]; then
+    unset VB_LOCKED
+    return 0
+  fi
+  [[ -d $VB_HOME ]] || return 0
+  mkdir -p "$VB_RUN"
+  chmod 700 "$VB_RUN"
+  VB_LOCKED=1 flock -o -w 60 -E 75 "$VB_RUN/lock" "$0" "$@" || rc=$?
+  ((rc != 75)) || vb_die "another 'vedabase' command is still busy with this installation; try again in a minute"
+  exit "$rc"
+}
+
 main() {
   local sub=${1:-}
+  case $sub in
+    open | web | stop | vedabase | vanibase | folio | '') with_lock "$@" ;;
+  esac
   case $sub in
     -h | --help | help) usage ;;
     open | web | stop | status | doctor | backup | where | unicode)

@@ -239,6 +239,25 @@ page=$(curl -s --noproxy '*' --max-time 5 -o /dev/null -w '%{http_code}' "http:/
 check "  ... and with Folio closed there, 'vedabase web' serves the page again (HTTP $page)" test "$page" = 200
 exec 7>&-
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# One command at a time changes the viewer: one that finds another holding the
+# lock (here the test, for 3 s) waits for it, and what 'vedabase web' leaves
+# running (Xvnc, websockify, Wine) does not hold it.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-lock.out" 2>&1
+check "what 'vedabase web' leaves running does not hold the lock" flock -n "$VH/run/lock" true
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# Timed with nothing left to stop, which takes no time of its own.
+started=$SECONDS
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+free=$((SECONDS - started))
+flock "$VH/run/lock" sleep 6 &
+holder=$!
+sleep 0.5
+started=$SECONDS
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+took=$((SECONDS - started))
+check "'vedabase stop' waits while another command holds the lock (${took} s; ${free} s when it is free)" \
+  test "$took" -ge 4 -a "$free" -le 2
+wait "$holder"
 # A nudger held up past the end of its display must not cost the next display
 # its own, even when the new display takes the old one's number.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1
