@@ -120,6 +120,8 @@ cmd_web() {
       return 0
     fi
   elif [[ -n $(vb_prefix_pids) ]]; then
+    ! vb_display_alive web ||
+      vb_die "the browser viewer's page is no longer served; run 'vedabase stop', then 'vedabase web'"
     vb_die "VedaBase is already open on a desktop; close it, or run 'vedabase stop', first"
   fi
   vb_web_start "$geom"

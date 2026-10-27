@@ -170,6 +170,45 @@ VEDABASE_HOME=$VH/ run "$H/.local/bin/vedabase" stop >"$B/stop-spelling.out" 2>&
 check "'vedabase stop' with the home spelled another way ends the display" test "$(home_xvncs "$VH")" -eq 0
 check "  ... and takes the page down" test -z "$(ss -Htln "sport = :$PORT")"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# websockify forks a copy of itself for each connection, and a copy can
+# outlive its server (here killed outright while a connection is open),
+# keeping the port where nothing answers any more: 'vedabase web' must not
+# take it for the page's server.
+ws_server() { # the websockify on $PORT that leads its session: its server
+  local p
+  for p in $(pgrep -u "$(id -u)" -x python3); do
+    grep -qzxF -- "127.0.0.1:$PORT" "/proc/$p/cmdline" 2>/dev/null || continue
+    [[ $(ps -o sid= -p "$p" | tr -d ' ') == "$p" ]] && echo "$p"
+  done
+}
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-copy.out" 2>&1
+sleep 5 # Folio opening, so that the viewer counts as running
+# A WebSocket, as a browser opens one: its copy stays while the connection
+# does (one that sends nothing is dropped after 3 s).
+exec 7<>"/dev/tcp/127.0.0.1/$PORT"
+printf 'GET /websockify HTTP/1.1\r\nHost: 127.0.0.1:%s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: binary\r\n\r\n' \
+  "$PORT" >&7
+upgraded=''
+IFS= read -r -t 3 upgraded <&7
+server=$(ws_server)
+check "  (a WebSocket is open, and websockify's server is found with a copy for it)" \
+  test "${upgraded%$'\r'}" = 'HTTP/1.1 101 Switching Protocols' -a -n "$server" \
+  -a "$(pgrep -u "$(id -u)" -x -P "${server:-0}" python3 | wc -l)" -ge 1
+# shellcheck disable=SC2086 # one PID a word
+kill -KILL $server
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-copy-left.out" 2>&1
+rc=$?
+check "with only a connection's copy of websockify left, 'vedabase web' does not say the viewer runs" \
+  test "$(grep -c 'already running' "$B/web-copy-left.out")" -eq 0
+check "  ... but fails, saying to stop it first (exit $rc)" \
+  test "$rc" -ne 0 -a "$(grep -c "vedabase stop" "$B/web-copy-left.out")" -ge 1
+for ws in "$VH"/wine/*/bin/wineserver; do WINEPREFIX=$VH/prefix "$ws" -k 2>/dev/null; done
+for _ in $(seq 1 20); do [[ $(prefix_procs "$VH/prefix") -eq 0 ]] && break; sleep 0.5; done
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-copy-again.out" 2>&1
+page=$(curl -s --noproxy '*' --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/vnc.html")
+check "  ... and with Folio closed there, 'vedabase web' serves the page again (HTTP $page)" test "$page" = 200
+exec 7>&-
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # A nudger held up past the end of its display must not cost the next display
 # its own, even when the new display takes the old one's number.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1

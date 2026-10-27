@@ -160,10 +160,20 @@ vb_novnc_dir() {
   return 1
 }
 
-# websockify for this home's viewer, and the copies of it that serve
-# connections: their --unix-target is this home's socket.
+# websockify for this home's viewer, and the copies of itself it forks, one
+# per connection: their --unix-target is the viewer's socket.
 vb_websockify_pids() { vb_pids_with_arg python3 "--unix-target=$(vb_display_sock web)"; }
-vb_websockify_alive() { [[ -n $(vb_websockify_pids) ]]; }
+# Running means its server runs: the one that leads the session setsid gave
+# it. A copy forked for a connection leads none, and can outlive a server that
+# was killed, holding the port where nothing answers any more.
+vb_websockify_alive() {
+  local pid sid
+  for pid in $(vb_websockify_pids); do
+    sid=$(ps -o sid= -p "$pid" 2>/dev/null) || continue
+    [[ ${sid// /} == "$pid" ]] && return 0
+  done
+  return 1
+}
 
 # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X event
 # wakes it (lib/x11-nudge.py says why), and with no window manager nothing on
@@ -186,11 +196,21 @@ vb_nudger_ensure() {
 }
 
 vb_web_start() { # GEOMETRY
-  local d=$VB_RUN/web port novnc
+  local d=$VB_RUN/web port novnc pids i
   port=$(vb_web_port)
   vb_display_alive web || vb_web_password
   vb_display_start web "$1" VncAuth
   if ! vb_websockify_alive; then
+    # Copies left by a server that died hold its port, and serve no one new.
+    pids=$(vb_websockify_pids)
+    if [[ -n $pids ]]; then
+      # shellcheck disable=SC2086 # one PID a word
+      kill $pids 2>/dev/null || true
+      for i in {1..25}; do
+        [[ -n $(vb_websockify_pids) ]] || break
+        sleep 0.2
+      done
+    fi
     if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
       vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
     fi
