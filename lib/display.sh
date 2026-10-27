@@ -79,8 +79,13 @@ vb_display_start() {
     vb_display_use "$name"
     return 0
   fi
+  # What an earlier display of NAME left goes while its record names it. The
+  # new display gets a socket of its own, so that no record of an earlier one
+  # (stale, or in a home since moved) can name its processes.
+  vb_display_stop "$name"
   sock=$(vb_sock "$name")
-  rm -f -- "$d/xauth" "$sock"
+  sock=${sock%.sock}-$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n').sock
+  rm -f -- "$d/xauth"
   printf '%s\n' "$sock" >"$d/sock"
   (umask 077 && : >"$d/xauth" && : >"$d/displayfd") # displayfd exists before Xvnc writes to it
   # Xvnc accepts the cookie whatever display it is filed under; clients look it
@@ -174,6 +179,19 @@ vb_websockify_alive() {
   done
   return 1
 }
+# Ends websockify and its copies, and waits up to 5 s for them to go, and so
+# for the port they hold to come free.
+vb_websockify_stop() {
+  local pids i
+  pids=$(vb_websockify_pids)
+  [[ -n $pids ]] || return 0
+  # shellcheck disable=SC2086 # one PID a word
+  kill $pids 2>/dev/null || true
+  for i in {1..25}; do
+    [[ -n $(vb_websockify_pids) ]] || return 0
+    sleep 0.2
+  done
+}
 
 # Wine 11.0 puts a copy made in Folio on the X clipboard only when an X event
 # wakes it (lib/x11-nudge.py says why), and with no window manager nothing on
@@ -196,21 +214,17 @@ vb_nudger_ensure() {
 }
 
 vb_web_start() { # GEOMETRY
-  local d=$VB_RUN/web port novnc pids i
+  local d=$VB_RUN/web port novnc
   port=$(vb_web_port)
-  vb_display_alive web || vb_web_password
+  if ! vb_display_alive web; then
+    # The websockify of an earlier display goes before the new display's
+    # record replaces the one that names it.
+    vb_websockify_stop
+    vb_web_password
+  fi
   vb_display_start web "$1" VncAuth
   if ! vb_websockify_alive; then
-    # Copies left by a server that died hold its port, and serve no one new.
-    pids=$(vb_websockify_pids)
-    if [[ -n $pids ]]; then
-      # shellcheck disable=SC2086 # one PID a word
-      kill $pids 2>/dev/null || true
-      for i in {1..25}; do
-        [[ -n $(vb_websockify_pids) ]] || break
-        sleep 0.2
-      done
-    fi
+    vb_websockify_stop # copies left by a server that died hold its port, serving no one new
     if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
       vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
     fi
@@ -227,9 +241,7 @@ vb_web_start() { # GEOMETRY
 
 vb_web_stop() {
   local pids display='' i
-  pids=$(vb_websockify_pids)
-  # shellcheck disable=SC2086 # one PID a word
-  [[ -z $pids ]] || kill $pids 2>/dev/null || true
+  vb_websockify_stop
   rm -f -- "$VB_RUN/web/websockify.pid" # earlier versions kept one
   if [[ -s $VB_RUN/web/display ]]; then display=$(<"$VB_RUN/web/display"); fi
   vb_display_stop web

@@ -175,6 +175,31 @@ check "  ... and 'vedabase stop' under that spelling has closed Wine when it ret
 check "  ... ends the display" test "$(home_xvncs "$VH")" -eq 0
 check "  ... and takes the page down" test -z "$(ss -Htln "sport = :$PORT")"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# A record that names an earlier display's socket (here copied into another
+# home, as a home since moved would keep one) must not reach the displays
+# that come after it: each has a socket of its own.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-earlier.out" 2>&1
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+mkdir -p "$B/moved/run/web" && cp -- "$VH/run/web/sock" "$B/moved/run/web/sock"
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-later.out" 2>&1
+VEDABASE_HOME=$B/moved run "$H/.local/bin/vedabase" stop >"$B/stop-moved.out" 2>&1
+check "'vedabase stop' for another home holding an earlier display's record leaves this display running" \
+  test "$(home_xvncs "$VH")" -eq 1
+check "  ... and this page" test -n "$(ss -Htln "sport = :$PORT")"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# A display that dies while its websockify lives on: the next 'vedabase web'
+# (here under another spelling of the home) ends that websockify before the
+# new display's record replaces the old one, and starts the viewer again.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-lost.out" 2>&1
+kill -KILL "$(cat "$VH/run/web/xvnc.pid")"
+for _ in $(seq 1 20); do [[ $(prefix_procs "$VH/prefix") -eq 0 ]] && break; sleep 0.5; done
+VEDABASE_HOME=$VH/ VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-lost-again.out" 2>&1
+rc=$?
+page=$(curl -s --noproxy '*' --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/vnc.html")
+check "after its display died, 'vedabase web' starts the viewer again (exit $rc, HTTP $page)" test "$rc" -eq 0 -a "$page" = 200
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+check "  ... and 'vedabase stop' then leaves no page and no display" \
+  test -z "$(ss -Htln "sport = :$PORT")" -a "$(home_xvncs "$VH")" -eq 0
 # websockify forks a copy of itself for each connection, and a copy can
 # outlive its server (here killed outright while a connection is open),
 # keeping the port where nothing answers any more: 'vedabase web' must not
