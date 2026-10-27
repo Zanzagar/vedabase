@@ -211,9 +211,11 @@ as you, with no root:
   display, so `vedabase stop` never has to find it by PID or lock file.
   `vedabase web` starts one whenever none owns the selection, also when the
   viewer is already running, and warns if none does 3 seconds later;
-  `vedabase stop` warns if the display's Xvnc is still running 5 seconds
-  after it was stopped, whether it answers or not (one that hangs can do
-  neither).
+  `vedabase stop` warns if the display's Xvnc or websockify is still running
+  5 seconds after it was stopped, whether it answers or not (one that hangs
+  can do neither), and names its PID. Until it has gone, `vedabase web`
+  starts no other display, which would replace the record that finds it,
+  and says which process to end; later stops keep finding it.
 
 `vedabase open`, `web` and `stop` run one at a time for an installation:
 each holds a lock (`flock` on `run/lock`) while it runs, and the kernel lets
