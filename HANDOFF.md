@@ -94,9 +94,11 @@ public repository sees it**).
   `web` and `stop` run one at a time, `bin/vedabase` re-running itself under
   `flock -o` on `run/lock` (flock is now required; install.sh checks for it). Five
   pinned Codex reviews (gpt-6-astra): the branch (2 findings), then each round of
-  fixes (4, 1, 2); the fifth, on the last two, approved with no findings. Every
-  finding was re-derived red in `linux-e2e.sh` before its fix, except one race
-  between two lines of one function, closed structurally (5173037). Merged into `main` (`ec28d31`..`21d526c`). On the merged code:
+  fixes (4, 1, 2); the fifth, on the last two, approved with no findings. The
+  findings of the first three were re-derived red in `linux-e2e.sh` before their
+  fixes; the fourth's two were fixed without a test (a race between two lines of
+  one function, closed structurally in 5173037; flock missing, now required,
+  21d526c). Merged into `main` (`ec28d31`..`21d526c`). On the merged code:
   `unicode.sh` 199 checks, `nudge.sh` 13, `linux-e2e.sh` 85 (Chromium included),
   `interrupt.sh` 13 (it now polls, Open 4), `mac-sim.sh` 16, `rollback.sh` 9. The
   reviews, probes, test outputs and GNOME launchers are archived in
