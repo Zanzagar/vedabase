@@ -172,10 +172,12 @@ as you, with no root:
   - *Requirement:* it needs `xkbcomp` at `/usr/bin` (packages `x11-xkb-utils`
     and `xkb-data`), because the keymap compiler's path is compiled in.
   - *Finding it again:* `vedabase stop` ends every `Xtigervnc` of your
-    account whose arguments name this installation's socket. The PID it
-    records is never trusted on its own: the record outlives the process (a
-    reboot leaves it), and the number may then belong to another program,
-    even another Xvnc.
+    account whose arguments name the socket the display was started with.
+    That socket is recorded in the display's run folder, because its name
+    carries a hash of the installation's folder as it was spelled (`/x/vb`
+    and `/x/vb/` would give two names). The PID it records is never trusted
+    on its own: the record outlives the process (a reboot leaves it), and
+    the number may then belong to another program, even another Xvnc.
 - **websockify + noVNC**, also unpacked from Ubuntu packages. websockify is
   started with the system `/usr/bin/python3`, because the package is built for
   it. It listens on `127.0.0.1:6080`. A localhost port is open to every user
@@ -184,7 +186,11 @@ as you, with no root:
   out (`-UseBlacklist=0`): the lockout would let any local user lock you out
   through that port, and there is nothing to guess. `vedabase web` and
   `vedabase stop` find websockify the same way as Xvnc, by the socket its
-  `--unix-target` names; no PID file is kept.
+  `--unix-target` names; no PID file is kept. websockify forks a copy of
+  itself for each connection, so it counts as running only while its server
+  does, the process that leads its session: a copy can outlive a server that
+  died and keep the port, where nothing answers, and `vedabase web` ends such
+  copies before it starts a new server.
 - **A Wine virtual desktop** (`explorer /desktop=VedaBase,1600x1000`). With no
   window manager, Folio's window would have no frame, so it couldn't be moved
   or maximized. Folio also doesn't maximize itself under Wine, so
