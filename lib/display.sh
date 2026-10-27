@@ -53,7 +53,7 @@ vb_display_alive() { # NAME
   [[ -s $d/xvnc.pid && -s $d/display ]] || return 1
   pid=$(<"$d/xvnc.pid")
   pids=$(vb_display_pids "$1")
-  [[ $'\n'$pids$'\n' == *$'\n'$pid$'\n'* ]]
+  [[ $'\n'$pids$'\n' == *$'\n'"$pid"$'\n'* ]]
 }
 
 vb_display_use() { # NAME: point DISPLAY/XAUTHORITY at it
