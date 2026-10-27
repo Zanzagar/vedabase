@@ -52,8 +52,12 @@ public repository sees it**).
   then a lock taken from a still-running press and unchecked reads (re-derived, fixed:
   621cdbd); the third found the lock itself still unsound (a reclaim that can take a
   fresh lock, a reclaim guard a kill can strand, a stale PID reused by another process),
-  **open: do not merge before it is answered** (proposal in the 2026-10-26-2146 brief).
-  Never run on Windows or a Mac.
+  ~~**open: do not merge before it is answered** (proposal in the 2026-10-26-2146 brief).~~
+  Never run on Windows or a Mac. **► Later that evening the maintainer cleared the table
+  for the public repository (the devotee had not objected to its being public). The lock
+  was redone as flock (0ef6106), a fourth Codex review's one finding fixed (9862b76),
+  and the converter merged into `main` and pushed; the local branch is deleted. On the
+  merged code: `unicode.sh` 197 checks, `linux-e2e.sh` 40, `mac-sim.sh` 16.**
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -171,7 +175,8 @@ A. ~~**Read the devotee's five files** (State, 2026-10-26) as data, the plain-te
    twin and the two agreeing byte for byte, the Linux clipboard, the Mac app in the
    simulation). **The table it needs enters this repository only after the devotee who
    shares the installers agrees**, so the work lives on the local branch
-   `unicode/converter` in journel's clone, unpushed until then.
+   `unicode/converter` in journel's clone, unpushed until then. **► Done: published
+   2026-10-26 (9862b76), once the maintainer cleared the table.**
 B. **The maintainer's call:** how the README ("If the download breaks", "What's next",
    the closing thanks) and `docs/sources.md` speak of the Drive folders' maintainer, given
    the news in the private notes. Ask the maintainer how it should read before changing
@@ -203,6 +208,14 @@ F. **Copying text out of Folio under Wine** (found 2026-10-26). In
    manager (`vedabase open`), the Mac. Next: try those; trace the X protocol around
    `acquire_selection`; look for a Wine bug. Meanwhile `vedabase web`'s hint "Copy text
    out through the clipboard tab on the noVNC side panel" is unverified.
+G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw Ṝ, the
+   table's letter, but every SCA face checked (ScaGoudy, ScaTimes: most of VedaBase's
+   text) draws ü. Copied text has no font, so a ü typed in an SCA passage (a German
+   name, say) comes out as Ṝ, while capital Ṝ hardly occurs in Sanskrit text. Whether
+   È occurs at all is not known: the infobase text is compressed, and Folio's search
+   ignores case (it cannot count È apart from è). The maintainer's call, best after
+   asking the devotee whether È turns up in text he copies; changing it is one table row
+   (`lib/balaram-unicode.tsv`) and the corpus line in `tests/unicode.sh`.
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
    panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
