@@ -21,7 +21,7 @@ Windows updates over the years.
 | Install folder, *VedaBase with Program* | `1DLtXVHhfHDjwo7A6TKha1SyvhkYhQ5u_` |
 | Install folder, *VaniBase* | `1a5-ZLiuBYLU9xGNa37f4ZEQhPG82vyFz` |
 
-Ekanatha dāsa maintains both install folders. `manifest/drive-files.tsv`
+Ekanatha dāsa set up both install folders. `manifest/drive-files.tsv`
 records every file in them, with its size and SHA-256.
 
 ## Ekanatha dāsa's README (`README.docx`, and the older `Nfo/VedaBase-with-Program Installation.pdf`)

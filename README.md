@@ -7,9 +7,9 @@ with two infobases:
   conversations and the rest of his corpus.
 - **VaniBase 25:** works by other devotees.
 
-Each installer downloads Ekanatha dāsa's distribution of the files and runs
-the original 2003 installer. Then it takes care of what that installer leaves
-undone ([details](#what-the-installers-add)):
+Each installer downloads the VedaBase files from their public Google Drive
+folders and runs the original 2003 installer. Then it takes care of what
+that installer leaves undone ([details](#what-the-installers-add)):
 
 - **One file to double-click** on Windows and macOS, one command on Linux.
 - **Every file is checked** against its SHA-256 before it is used.
@@ -256,13 +256,14 @@ whoever gave you this installer a description, plus:
 
 ### If the download breaks
 
-The files come from public Google Drive links owned by Ekanatha dāsa.
+The files come from two public Google Drive folders
+([docs/sources.md](docs/sources.md)).
 
 - **"did not arrive intact".** Usually Google Drive is limiting downloads of
   a busy file for a while. Wait a few hours, then run the installer again.
-- **The files changed.** If Ekanatha dāsa replaces them, the installers refuse
-  the new files rather than install something unchecked, and they need an
-  update.
+- **The files changed.** If the files in those folders change, the
+  installers refuse the new files rather than install something unchecked,
+  and they need an update.
 - **Linux, installing from a copy.** You can install from a copy you already
   have, laid out like the Drive folders (`Install.exe`, `Fonts/`, `Nfo/`,
   `Spec/`, `VaniBase/`). The Windows and Mac installers have no such option
@@ -327,20 +328,19 @@ The installers get better as reports come in:
 - **The first run on a Mac**, and runs on more Windows PCs. What they show
   will correct these steps wherever they differ.
 - **What Windows updates broke.** Some Folio features have stopped working on
-  newer Windows. Once it is known which, the installers can add workarounds,
-  as they already try to for the freeze on exit.
+  newer Windows. Once it is known which, the installers can add workarounds.
 - **Unicode text.** Text copied out of VedaBase uses the old Balaram encoding
   (see [Copying text out](#copying-text-out)). A converter to standard Unicode
   would make it usable in other programs, including AI tools.
-- **New releases.** When Ekanatha dāsa publishes a new VedaBase, the
-  installers need only an updated `manifest/drive-files.tsv`.
+- **New releases.** For a new VedaBase release, the installers need only an
+  updated `manifest/drive-files.tsv`.
 
 ## License
 
 The scripts and documents in this repository are under the MIT license (see
 [LICENSE](LICENSE)). It covers only them, not VedaBase. This repository
 contains none of the VedaBase program or texts: everything is downloaded at
-install time from Ekanatha dāsa's links.
+install time from the public Google Drive folders.
 
 VedaBase itself comes with the 2003 Bhaktivedanta Archives license, which the
 original installer shows and which installing accepts:

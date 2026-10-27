@@ -150,14 +150,18 @@ A. ~~**Read the devotee's five files** (State, 2026-10-26) as data, the plain-te
 B. **The maintainer's call:** how the README ("If the download breaks", "What's next",
    the closing thanks) and `docs/sources.md` speak of the Drive folders' maintainer, given
    the news in the private notes. Ask the maintainer how it should read before changing
-   those lines.
+   those lines. **► Decided 2026-10-26: the lines about the downloads name the folders, not
+   him ("set up by" where his name stays: `docs/sources.md`, `docs/how-it-works.md`); the
+   README's closing thanks stays as it is until the devotee who shares the installers
+   says how he would like it worded.**
 C. **Where the Drive files live in the long run.** The installers download from those
    folders and stop working if the folders go away; the archive holds the copy of
    2026-10-19 (`drive-files-2026-10-19/`). A question for the maintainer and the devotee
    who shares the installers; the licence's clause 2.4 limits copies.
-D. **A stale line in the README:** "What's next" says the installers "already try to" work
+D. ~~**A stale line in the README:** "What's next" says the installers "already try to" work
    around the freeze on exit, which they stopped doing in 37d4adb (the README's own
-   Windows notes say so). A one-line fix, best made when A or B rewrites that section.
+   Windows notes say so). A one-line fix, best made when A or B rewrites that section.~~
+   **► Fixed 2026-10-26, with B.**
 E. **The merged branch `review/verdict-followups`** is still on GitHub and in journel's
    clone; deleting it needs the maintainer's OK (`.claude/settings.json` asks before a
    remote delete).

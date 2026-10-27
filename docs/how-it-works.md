@@ -7,7 +7,7 @@ that would break on some Windows setups.
 
 ## The inputs
 
-**The VedaBase files.** Two Google Drive folders maintained by Ekanatha dāsa.
+**The VedaBase files.** Two Google Drive folders set up by Ekanatha dāsa.
 *VedaBase with Program* holds `Install.exe`, `Fonts\`, `Nfo\`, `Spec\`, a
 README and a CrossOver-on-macOS report. *VaniBase* holds `VaniBase_25.nfo` and
 `.sdw`.
