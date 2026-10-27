@@ -78,8 +78,17 @@ prefix_procs() { # PREFIX
   done
   echo "$n"
 }
-# Xvnc servers started for the VEDABASE_HOME given (their -auth file is in it).
-home_xvncs() { pgrep -u "$(id -u)" -f "Xtigervnc.*-auth $1/" | wc -l; }
+# Xvnc servers started for the VEDABASE_HOME given (their -auth file is in it),
+# picked by the kernel's name for the program, not by a pattern on command
+# lines, which a shell that only mentions them (one running a test) matches.
+home_xvncs() { # VEDABASE_HOME
+  local p args n=0
+  for p in $(pgrep -u "$(id -u)" -x Xtigervnc); do
+    args=$(tr '\0' '\n' <"/proc/$p/cmdline" 2>/dev/null) || continue
+    [[ $'\n'$args == *$'\n'"$1/"* ]] && n=$((n + 1))
+  done
+  echo "$n"
+}
 
 # A private X display (TigerVNC's Xvnc, no network, no password: only this
 # account can reach it). Sets DISPLAY and XAUTHORITY; stop_display ends it.
