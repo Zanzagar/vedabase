@@ -44,11 +44,16 @@ vb_pids_with_arg() { # NAME ARG
   return 0
 }
 
+# The Xvnc of display NAME: its -rfbunixpath is this home's socket for NAME.
+vb_display_pids() { vb_pids_with_arg Xtigervnc "$(vb_sock "$1")"; } # NAME
+
+# The records say which display; they count only while it is still there.
 vb_display_alive() { # NAME
-  local d=$VB_RUN/$1 pid
+  local d=$VB_RUN/$1 pid pids
   [[ -s $d/xvnc.pid && -s $d/display ]] || return 1
   pid=$(<"$d/xvnc.pid")
-  kill -0 "$pid" 2>/dev/null && [[ $(ps -o comm= -p "$pid" 2>/dev/null) == Xtigervnc* ]]
+  pids=$(vb_display_pids "$1")
+  [[ $'\n'$pids$'\n' == *$'\n'$pid$'\n'* ]]
 }
 
 vb_display_use() { # NAME: point DISPLAY/XAUTHORITY at it
@@ -114,12 +119,13 @@ vb_display_start() {
   }
 }
 
+# Every Xvnc of NAME goes, whatever the records say: a wrong one (stale, or
+# overwritten by a second start) must not leave a display running.
 vb_display_stop() { # NAME
-  local d=$VB_RUN/$1 pid
-  if [[ -s $d/xvnc.pid ]]; then
-    pid=$(<"$d/xvnc.pid")
-    if [[ $(ps -o comm= -p "$pid" 2>/dev/null) == Xtigervnc* ]]; then kill "$pid" 2>/dev/null || true; fi
-  fi
+  local d=$VB_RUN/$1 pids
+  pids=$(vb_display_pids "$1")
+  # shellcheck disable=SC2086 # one PID a word
+  [[ -z $pids ]] || kill $pids 2>/dev/null || true
   rm -f -- "$d/xvnc.pid" "$d/display" "$d/displayfd" "$(vb_sock "$1")"
 }
 

@@ -134,18 +134,18 @@ check "a viewer whose nudger fails as it starts says so" grep -q "clipboard pane
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-again.out" 2>&1
 check "  ... and 'vedabase web' run again starts one" nudger_up
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
-# A display that outlives 'vedabase stop' (here its PID record names another
-# process) is reported, and the next viewer gets a nudger all the same.
+# A PID record that names another process (a stale one, after a reboot) must
+# neither keep the display from stopping nor cost that process its life, even
+# one that runs a program called Xtigervnc.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web3.out" 2>&1
-survivor=$(cat "$VH/run/web/xvnc.pid") old_display=$(<"$VH/run/web/display")
-echo "$$" >"$VH/run/web/xvnc.pid"
-run "$H/.local/bin/vedabase" stop >"$B/stop-survivor.out" 2>&1
-check "a display that outlives stop is reported" grep -q 'did not stop' "$B/stop-survivor.out"
-VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web4.out" 2>&1
-check "  ... and the next viewer gets a nudger of its own" nudger_up
-kill "$survivor"; sleep 1
-check "  ... while the survivor's ends with the survivor" test -z "$(nudgers "$old_display")"
-run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+mkdir -p "$B/namesake" && cp -- "$(command -v sleep)" "$B/namesake/Xtigervnc"
+"$B/namesake/Xtigervnc" 300 &
+namesake=$!
+echo "$namesake" >"$VH/run/web/xvnc.pid"
+run "$H/.local/bin/vedabase" stop >"$B/stop-wrong-record.out" 2>&1
+check "behind a wrong PID record, 'vedabase stop' still ends the display" test "$(home_xvncs "$VH")" -eq 0
+check "  ... and leaves the process the record names alone, though it is called Xtigervnc" kill -0 "$namesake"
+kill "$namesake"; wait "$namesake" 2>/dev/null
 # A nudger held up past the end of its display must not cost the next display
 # its own, even when the new display takes the old one's number.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1
