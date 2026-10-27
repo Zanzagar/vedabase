@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Linux end to end: a clean unattended install, doctor, permissions, the
-# browser viewer (with CHROME_EXE set: it connects, survives six wrong
-# passwords, takes typing), stop, and a backup -> --reinstall --restore round trip.
+# browser viewer (a word copied in Folio reaches its clipboard and converts;
+# with CHROME_EXE set: it connects, survives six wrong passwords, takes typing,
+# shows a copy made in the browser in noVNC's clipboard panel), stop, and a
+# backup -> --reinstall --restore round trip.
 set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/linux-e2e H=$B/home VH=$B/vb PORT=${VB_TEST_PORT:-6091}
@@ -42,6 +44,33 @@ web_unicode() { # TEXT: put it on that clipboard, then convert it as a web user 
 }
 web_unicode 'Çré Kåñëa'
 check "with no desktop, 'vedabase unicode' converts the browser viewer's clipboard" test "$(web_clip -o 2>/dev/null)" = 'Śrī Kṛṣṇa'
+# A copy made in Folio itself. Wine 11.0 puts it on the X clipboard only when
+# something wakes it (lib/x11-nudge.py), and on this display only the viewer's
+# nudger does: without it, the clipboard would keep 'Śrī Kṛṣṇa'.
+web_x() { # COMMAND...: on the browser viewer's display
+  DISPLAY=$(<"$VH/run/web/display") XAUTHORITY=$VH/run/web/xauth PATH=$VH/tools/root/usr/bin:$PATH \
+    LD_LIBRARY_PATH=$VH/tools/root/usr/lib/x86_64-linux-gnu "$@"
+}
+nudging() { # PID: is it the viewer's nudger?
+  local a
+  a=$(ps -o args= -p "${1:-0}" 2>/dev/null) || return 1
+  [[ $a == *x11-nudge.py* ]]
+}
+nudger=$(cat "$VH/run/web/nudge.pid" 2>/dev/null) || nudger=''
+check "the browser viewer runs a nudger for Wine's copies" nudging "$nudger"
+for _ in $(seq 1 60); do [[ -n $(web_x xdotool search --name '^Folio Views' 2>/dev/null) ]] && break; sleep 0.5; done
+sleep 4 # the infobase opening
+web_x xdotool mousemove 430 66 click --repeat 3 --delay 80 1; sleep 0.5
+web_x xdotool type --delay 40 -- "dehino 'smin yatha dehe"; web_x xdotool key Return; sleep 8
+web_x xdotool mousemove 912 323 click --repeat 2 --delay 100 1; sleep 1
+web_x xdotool key --clearmodifiers ctrl+c; sleep 2.5
+# Folio's copy goes on past a NUL with leftovers from its buffer: up to it.
+copied=''
+IFS= read -r -d '' copied < <(web_clip -o 2>/dev/null) || :
+check "a word copied in Folio reaches the viewer's clipboard by itself, as 'kaumäraà'" test "$copied" = 'kaumäraà'
+env -u DISPLAY -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$B" \
+  HOME="$H" "$H/.local/bin/vedabase" unicode >>"$B/unicode-web.log" 2>&1
+check "'vedabase unicode' turns that copy into 'kaumāraṁ'" test "$(web_clip -o 2>/dev/null)" = 'kaumāraṁ'
 if [[ -n ${CHROME_EXE:-} ]]; then
   sleep 8
   python3 "$TESTS/novnc/lockout.py" "$url" "$B/web-after-wrong.png" >"$B/lockout.log" 2>&1
@@ -52,6 +81,8 @@ if [[ -n ${CHROME_EXE:-} ]]; then
   export VH H B
   python3 "$TESTS/novnc/clipboard.py" "$url" 'Gaṅgā jñāna' -- bash -c "web_unicode 'Gaìgä jïäna'" >"$B/clipboard.log" 2>&1
   check "noVNC's clipboard panel receives the converted text, Unicode intact (log: $B/clipboard.log)" test $? -eq 0
+  python3 "$TESTS/novnc/copy.py" "$url" 'kaumäraà' "$B/web-copied.png" >"$B/copy.log" 2>&1
+  check "a word copied in Folio through the browser shows in noVNC's clipboard panel (log: $B/copy.log)" test $? -eq 0
 else
   echo "SKIP  browser checks (set CHROME_EXE to a Chromium for Playwright)"
 fi
@@ -60,6 +91,8 @@ check "a second vedabase web gives the link again" grep -q 'already running' "$B
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 check "stop leaves no display running" test "$(home_xvncs "$VH")" -eq 0
 check "stop leaves no Wine running" test "$(prefix_procs "$VH/prefix")" -eq 0
+nudging "$nudger"
+check "stop ends the nudger" test $? -ne 0 -a ! -e "$VH/run/web/nudge.pid"
 
 run "$H/.local/bin/vedabase" backup "$B/backup.tar.gz" >"$B/backup.log" 2>&1
 check "backup succeeds" test $? -eq 0
