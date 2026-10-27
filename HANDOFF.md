@@ -178,7 +178,10 @@ B. **The maintainer's call:** how the README ("If the download breaks", "What's 
    those lines. **► Decided 2026-10-26: the lines about the downloads name the folders, not
    him ("set up by" where his name stays: `docs/sources.md`, `docs/how-it-works.md`); the
    README's closing thanks stays as it is until the devotee who shares the installers
-   says how he would like it worded.**
+   says how he would like it worded.** **► Later the same evening the maintainer asked for
+   the thanks now: it remembers him with gratitude, "until his passing", and offers the
+   installers "in continuation of his service". Provisional: revisit once the maintainer
+   has written to the devotee.**
 C. **Where the Drive files live in the long run.** The installers download from those
    folders and stop working if the folders go away; the archive holds the copy of
    2026-10-19 (`drive-files-2026-10-19/`). A question for the maintainer and the devotee

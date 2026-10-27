@@ -354,7 +354,9 @@ original installer shows and which installing accepts:
 
 Questions about wider use are for the Bhaktivedanta Archives.
 
-Thanks to Ekanatha dāsa for maintaining the VedaBase files and instructions,
-and to Tāraka dāsa for sharing them. Wine builds come from
+With gratitude to Ekanatha dāsa, who maintained the VedaBase files and
+instructions and shared them with devotees until his passing; these installers
+are offered in continuation of his service. Thanks also to Tāraka dāsa for
+sharing the files. Wine builds come from
 [Kron4ek](https://github.com/Kron4ek/Wine-Builds) (Linux) and
 [Gcenx](https://github.com/Gcenx/macOS_Wine_builds) (macOS).
