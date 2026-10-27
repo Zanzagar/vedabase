@@ -119,6 +119,10 @@ function Get-Hash([string]$Text) {
 
 try {
   $text = Get-ClipboardText
+  # Text ends at its first NUL, as Windows programs read it; under Wine,
+  # Folio's copy goes on past one with leftovers from its buffer.
+  $nul = $text.IndexOf([char]0)
+  if ($nul -ge 0) { $text = $text.Substring(0, $nul) }
   $last = ''
   if (Test-Path -LiteralPath $LastFile) { $last = [System.IO.File]::ReadAllText($LastFile).Trim() }
   if ($text -ne '' -and $last -eq (Get-Hash $text)) {

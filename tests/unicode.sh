@@ -177,6 +177,12 @@ clipboard() {
   check "  ... and says it has just converted this text" grep -q 'just converted' "$B/press.log"
   put 'Hare Krishna'; press
   check "text with nothing to convert stays (status 3)" test "$(got)" = 'Hare Krishna' -a "$status" -eq 3
+  # Folio's copy as Wine hands it to X (seen 2026-10-26): the word, then a NUL
+  # and whatever followed it in Folio's buffer. Windows programs stop at the NUL.
+  printf 'kaum\303\244ra\303\240\0\0P\0r\0e\0' | xclip -selection clipboard -t UTF8_STRING -i >/dev/null 2>&1
+  press
+  got >"$B/got"; printf 'kaumāraṁ' >"$B/want"
+  check "Folio's copy, NUL and leftovers included, becomes just 'kaumāraṁ'" cmp -s "$B/got" "$B/want"
   stop_display
 }
 clipboard

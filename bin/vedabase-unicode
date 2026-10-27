@@ -130,9 +130,13 @@ else
 fi
 
 convert_clipboard() {
-  local status=0
+  local status=0 text=''
   pick_clipboard
-  clip_get >"$work/in" || : >"$work/in"
+  # Windows programs read text up to its first NUL. Folio's copy, as Wine
+  # hands it over, goes on past one with whatever followed in Folio's buffer.
+  clip_get >"$work/raw" || :
+  IFS= read -r -d '' text <"$work/raw" || :
+  printf '%s' "$text" >"$work/in"
   if [[ -s $work/in && -s $last && $(cksum <"$work/in") == "$(cat -- "$last")" ]]; then
     note "Not converted: this is the text it has just converted. Copy some text in VedaBase, then convert." 6
     exit 4
