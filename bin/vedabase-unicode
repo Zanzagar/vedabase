@@ -151,7 +151,8 @@ if [[ $(uname -s) == Darwin ]]; then
 else
   last=${XDG_CACHE_HOME:-$HOME/.cache}/vedabase/unicode-last
 fi
-lock=$last.lock
+# Not the old directory lock, unicode-last.lock, an unpublished draft of this.
+lock=${last%/*}/unicode.lock
 
 # Returns 2 if the folder cannot be written, 3 if another press held the lock
 # for 5 s (busy).

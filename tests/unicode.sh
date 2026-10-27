@@ -216,8 +216,9 @@ clipboard() {
   # busy (status 1); once that press has ended, however it ended, the lock
   # goes with it. The holder execs into sleep, so killing it frees the lock.
   local cache=$B/cache-lock lockfile holder
-  lockfile=$cache/vedabase/unicode-last.lock
-  mkdir -p "${lockfile%/*}"
+  lockfile=$cache/vedabase/unicode.lock
+  # A directory lock an unpublished draft of the converter used is in the way of nothing.
+  mkdir -p "$cache/vedabase/unicode-last.lock"
   (exec 8>>"$lockfile" && flock 8 && exec sleep 60) &
   holder=$!
   sleep 0.5

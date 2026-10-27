@@ -103,7 +103,9 @@ reinstalling without signing out of Windows.
 - After the install, `~/Applications/VedaBase 25.app` opens VedaBase directly
   and shows an icon. The icon is optional; it comes from `sips`.
 - **VedaBase Unicode** (check 8): note whether its dialog appears in front, and
-  whether macOS asked for any permission the first time.
+  whether macOS asked for any permission the first time. Click it twice
+  quickly after copying *yajña*: the result must read *yajña*, not *yajṣa*
+  (the Mac version has no lock and counts on macOS running one copy of an app).
 - Nothing new appeared on the Desktop.
 - On an Apple Silicon Mac, open and close VedaBase about 20 times. Open WineHQ
   bug 60494 makes some 32-bit programs crash or hang at random under Rosetta.
