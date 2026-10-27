@@ -77,6 +77,30 @@ public repository sees it**).
   `linux-e2e.sh` 58 (Chromium included: a word copied in Folio through the browser
   shows in noVNC's clipboard panel), `mac-sim.sh` 16, `interrupt.sh` 13, `rollback.sh`
   9; real Folio under openbox, on a private display, converted three copies in a row.
+- **► 2026-10-27, session 68ae51a3: the browser viewer's processes are found by what
+  they are.** Open 4's pid-file items held real bugs: `vedabase stop` trusted
+  `run/web/websockify.pid` with `kill -0`, so after a reboot it could kill whatever
+  process of the account held that PID, and `vedabase web` then served no page; it
+  trusted `xvnc.pid` whenever the process was called Xtigervnc; and it took a display
+  that did not answer for one that had gone. Now (`lib/display.sh`): Xvnc and
+  websockify are found by the socket the display was started with, an exact argument
+  in `/proc/PID/cmdline` (`vb_pids_with_arg`); each display gets a socket of its own
+  (random digits), recorded in `run/<name>/sock`, and the record is replaced only
+  once everything it names has gone (`vb_display_retire`; otherwise `vedabase web`
+  refuses, naming the PID); websockify counts as running only while its server, the
+  session leader, runs (the copies it forks per connection do not, and are cleared);
+  `stop` names an Xvnc or websockify still there after 5 s; `vb_prefix_pids` compares
+  WINEPREFIX as a folder (`-ef`), so any spelling of the home finds Wine; `open`,
+  `web` and `stop` run one at a time, `bin/vedabase` re-running itself under
+  `flock -o` on `run/lock` (flock is now required; install.sh checks for it). Five
+  pinned Codex reviews (gpt-6-astra): the branch (2 findings), then each round of
+  fixes (4, 1, 2); the fifth, on the last two, approved with no findings. Every
+  finding was re-derived red in `linux-e2e.sh` before its fix, except one race
+  between two lines of one function, closed structurally (5173037). Merged into `main` (`ec28d31`..`21d526c`). On the merged code:
+  `unicode.sh` 199 checks, `nudge.sh` 13, `linux-e2e.sh` 85 (Chromium included),
+  `interrupt.sh` 13 (it now polls, Open 4), `mac-sim.sh` 16, `rollback.sh` 9. The
+  reviews, probes, test outputs and GNOME launchers are archived in
+  `session-68ae51a3-2026-10-27/`.
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -216,7 +240,8 @@ D. ~~**A stale line in the README:** "What's next" says the installers "already 
    **► Fixed 2026-10-26, with B.**
 E. **The merged branch `review/verdict-followups`** is still on GitHub and in journel's
    clone; deleting it needs the maintainer's OK (`.claude/settings.json` asks before a
-   remote delete). **► So is `clipboard/wine-flush` on GitHub (merged 2026-10-26; gone
+   remote delete). **► So are `viewer/pid-identity` (merged 2026-10-27, still in
+   journel's clone too) and `clipboard/wine-flush` on GitHub (merged 2026-10-26; gone
    from journel's clone).**
 F. ~~**Copying text out of Folio under Wine** (found 2026-10-26).~~ **► Solved
    2026-10-26, session 4133d657.** In
@@ -259,7 +284,9 @@ H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 o
    due about January 2027; with it the nudges are not needed (they do no harm
    meanwhile). Moving the Linux pin (`lib/common.sh`, `VB_WINE_*`) is the maintainer's
    call, and it needs the whole suite re-run, the wizard driving included; 12.0 stable
-   is the natural moment. The Mac's Gcenx build uses Wine's Mac driver, which this does
+   is the natural moment (**► checked 2026-10-27: WineHQ's tags end at wine-11.20, as
+   do Kron4ek's builds, 2026-10-18; no 11.0.x stable release yet**). The Mac's Gcenx
+   build uses Wine's Mac driver, which this does
    not concern.
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
@@ -289,16 +316,25 @@ H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 o
    the tunnel even on WSL's early return; the finish phase repoints only the recent-file
    list's `File1`, so an install where VedaBase was opened before that fix, which moves
    the stale "4 Sh" entry to `File2`, keeps it (a harmless error dialog if clicked).
-   **► Added 2026-10-27:** `tests/interrupt.sh` looks 3 s after its signal, and once in
+   **► Added 2026-10-27:** ~~`tests/interrupt.sh` looks 3 s after its signal, and once in
    six runs this session a closed terminal's clean-up took longer ("a closed terminal
    leaves no wizard or display running" failed; the code under test had not changed):
-   poll rather than sleep.
-   `vb_websockify_alive` trusts whatever process its pid file names (`kill -0`), and
+   poll rather than sleep.~~ **► Done 2026-10-27 (68ae51a3, 02503d0): it polls for up
+   to 20 s.**
+   ~~`vb_websockify_alive` trusts whatever process its pid file names (`kill -0`), and
    `vb_display_stop` its pid record (a wrong one leaves Xvnc running, which `vedabase
    stop` now reports): the shape the nudger's pid file had before the X selection.
    Both predate session 4133d657. That report, in `vb_web_stop`, takes a probe that
    times out (`timeout 2 xdotool`) for a display that is gone, so an Xvnc frozen
-   rather than surviving stops without the warning; no test covers it.
+   rather than surviving stops without the warning; no test covers it.~~ **► Done
+   2026-10-27 (68ae51a3), with what five Codex reviews found besides: State.**
+   **► Added 2026-10-27 (68ae51a3), not done:** the link `vedabase web` and `status`
+   print takes `VEDABASE_WEB_PORT` from the command at hand, not the port the viewer
+   listens on (a viewer started on 6091 shows a 6080 link to a plain `vedabase
+   status`); install.sh does not take the viewer's lock (`run/lock`); a PID found by a
+   scan is signalled a moment later, a window only pidfd would close; once, `vedabase
+   web` on a running viewer warned that the nudger had not started (an earlier shape of
+   a test, websockify's server just killed), not seen in five runs since.
 
 ## Where the session records are
 
@@ -312,7 +348,8 @@ then filled its context (its handoff was already pushed, cfd0463), and
 `8f688260-7d77-43bc-b696-04c3d156cd94` (2026-10-26) moved the work to this folder**
 **► ; `39638aaf-16e5-45b4-804f-0ea9a4936dda` (2026-10-26) was the first run from this
 folder (see below)** **► ; `4133d657-2db5-4198-943f-fb31b206014b` (2026-10-26) solved
-Open F**.
+Open F** **► ; `68ae51a3-5b15-4047-9457-6178d1b9544a` (2026-10-27) found the browser
+viewer's processes by what they are (archived: `session-68ae51a3-2026-10-27/`)**.
 ~~The first is also archived (above); the newest file in `docs/handoffs/` names what the
 second ran.~~ **► The first two are also archived (above); the 2026-10-20-0405 brief names
 what the second ran. From 2026-10-26, sessions run from this folder

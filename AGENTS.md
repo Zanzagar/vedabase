@@ -100,6 +100,17 @@ matters, with the static checks before every commit:
   nudger owns an X selection on its display, which the X server frees with
   either (`lib/x11-nudge.py`), after a pid file, a lock file per home and one
   per display each outlived the display in a Codex review.
+- ► 2026-10-27: a command that leaves processes running is serialized by
+  running it again under `flock -o` (`with_lock` in `bin/vedabase`): the lock
+  is flock(1)'s, and -o keeps it out of every child without a `9>&-` at each
+  launch. The viewer's processes are found by an exact argument naming the
+  socket their display was started with (`vb_pids_with_arg`), never by a PID
+  file, a name, or `pgrep -f`, which also counts any shell whose command line
+  holds the pattern (a test run from a command that ran the same `pgrep -f`
+  failed twice on it). websockify forks a copy of itself per connection, with
+  the same arguments; only its server leads its session. A record that finds
+  processes is replaced only once all it names have gone (five Codex reviews,
+  session 68ae51a3).
 - Never set Windows XP compatibility mode on `Views.exe`: on Windows 11 it makes
   every start demand administrator rights, and removing it takes a flush of the
   compatibility cache too (`Remove-OldCompatMode`).
