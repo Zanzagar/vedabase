@@ -28,22 +28,26 @@ os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' ./install.sh --home "$VH" "${
   kill -"$sig" -- -"$pg" 2>/dev/null
   wait "$pg"
   rc=$?
-  sleep 3
 }
+# Nothing of the install running: no Wine in its prefix, no hidden display.
+idle() { test "$(prefix_procs "$VH/prefix")" -eq 0 -a "$(home_xvncs "$VH")" -eq 0; }
+# Idle within 20 s: the clean-up after a signal takes a moment (once in six
+# runs, more than the 3 s this test used to allow).
+settles() { for _ in $(seq 1 40); do idle && return 0; sleep 0.5; done; return 1; }
 rerun() { # DESCRIPTION
   HOME=$H ./install.sh --home "$VH" "${src[@]}" >>"$B/install.log" 2>&1
   check "$1: the re-run finishes the install" test $? -eq 0
-  check "$1: the re-run leaves nothing running" test "$(prefix_procs "$VH/prefix")" -eq 0 -a "$(home_xvncs "$VH")" -eq 0
+  check "$1: the re-run leaves nothing running" idle
 }
 
 interrupt INT
 check "Ctrl-C stops install.sh (exit $rc)" test "$rc" -ne 0
-check "Ctrl-C leaves no wizard or display running" test "$(prefix_procs "$VH/prefix")" -eq 0 -a "$(home_xvncs "$VH")" -eq 0
+check "Ctrl-C leaves no wizard or display running" settles
 rerun "after Ctrl-C"
 
 interrupt HUP --reinstall
 check "a closed terminal stops install.sh (exit $rc)" test "$rc" -ne 0
-check "a closed terminal leaves no wizard or display running" test "$(prefix_procs "$VH/prefix")" -eq 0 -a "$(home_xvncs "$VH")" -eq 0
+check "a closed terminal leaves no wizard or display running" settles
 rerun "after SIGHUP"
 
 interrupt KILL --reinstall
