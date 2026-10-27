@@ -138,6 +138,7 @@ run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # neither keep the display from stopping nor cost that process its life, even
 # one that runs a program called Xtigervnc.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web3.out" 2>&1
+check "  (a display to stop is running)" test "$(home_xvncs "$VH")" -eq 1
 mkdir -p "$B/namesake" && cp -- "$(command -v sleep)" "$B/namesake/Xtigervnc"
 "$B/namesake/Xtigervnc" 300 &
 namesake=$!
