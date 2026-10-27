@@ -95,6 +95,10 @@ matters, with the static checks before every commit:
 - Serialize with a lock the kernel releases (flock on Linux, a named mutex on
   Windows), and start lingering children (xclip) with its descriptor closed
   (`9>&-`). A hand-made mkdir/PID lock drew holes in three Codex reviews.
+  Give a helper's identity to whatever owns its lifetime: the browser viewer's
+  nudger owns an X selection on its display, which the X server frees with
+  either (`lib/x11-nudge.py`), after a pid file, a lock file per home and one
+  per display each outlived the display in a Codex review.
 - Never set Windows XP compatibility mode on `Views.exe`: on Windows 11 it makes
   every start demand administrator rights, and removing it takes a flush of the
   compatibility cache too (`Remove-OldCompatMode`).

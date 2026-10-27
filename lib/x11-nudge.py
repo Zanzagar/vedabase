@@ -17,7 +17,14 @@ acquire_selection()"); with a Wine that has it, this is not needed.
   x11-nudge.py once      nudge, then wait up to half a second for a new owner
                          of the clipboard (there is one if a claim was waiting):
                          exit 0 if one came, 3 if none did
-  x11-nudge.py every N   nudge every N seconds until the display goes away
+  x11-nudge.py every N   nudge every N seconds until the display goes away,
+                         unless another does so already (then exit 0 at once)
+  x11-nudge.py running   exit 0 if one does so on this display, 3 if none does
+
+One 'every' per X server: once its first nudge has gone through, it owns the
+selection _VEDABASE_NUDGER, which the server frees when either goes away (the
+ICCCM's manager selections work so). A new server, even under the number of
+an old one, starts with no owner.
 
 Exit 1: no display; 2: usage. Uses $DISPLAY and $XAUTHORITY."""
 import ctypes as C
@@ -33,12 +40,26 @@ class SelectionNotify(C.Structure):  # XFixesSelectionNotifyEvent
                 ("selection_timestamp", C.c_ulong)]
 
 
+class Request(C.Structure):  # XSelectionRequestEvent
+    _fields_ = [("type", C.c_int), ("serial", C.c_ulong), ("send_event", C.c_int),
+                ("display", C.c_void_p), ("owner", C.c_ulong), ("requestor", C.c_ulong),
+                ("selection", C.c_ulong), ("target", C.c_ulong), ("property", C.c_ulong),
+                ("time", C.c_ulong)]
+
+
+class Reply(C.Structure):  # XSelectionEvent
+    _fields_ = [("type", C.c_int), ("serial", C.c_ulong), ("send_event", C.c_int),
+                ("display", C.c_void_p), ("requestor", C.c_ulong), ("selection", C.c_ulong),
+                ("target", C.c_ulong), ("property", C.c_ulong), ("time", C.c_ulong)]
+
+
 class XEvent(C.Union):
-    _fields_ = [("type", C.c_int), ("selection", SelectionNotify), ("pad", C.c_long * 24)]
+    _fields_ = [("type", C.c_int), ("fixes", SelectionNotify), ("request", Request),
+                ("reply", Reply), ("pad", C.c_long * 24)]
 
 
-if not (sys.argv[1:] == ["once"] or (len(sys.argv) == 3 and sys.argv[1] == "every")):
-    print("usage: x11-nudge.py once | every SECONDS", file=sys.stderr)
+if not (sys.argv[1:] in (["once"], ["running"]) or (len(sys.argv) == 3 and sys.argv[1] == "every")):
+    print("usage: x11-nudge.py once | every SECONDS | running", file=sys.stderr)
     sys.exit(2)
 x = C.CDLL("libX11.so.6")
 x.XOpenDisplay.restype = C.c_void_p
@@ -49,6 +70,13 @@ x.XInternAtom.restype = C.c_ulong
 x.XInternAtom.argtypes = [C.c_void_p, C.c_char_p, C.c_int]
 x.XChangeProperty.argtypes = [C.c_void_p, C.c_ulong, C.c_ulong, C.c_ulong, C.c_int, C.c_int,
                               C.c_char_p, C.c_int]
+x.XCreateSimpleWindow.restype = C.c_ulong
+x.XCreateSimpleWindow.argtypes = [C.c_void_p, C.c_ulong, C.c_int, C.c_int, C.c_uint, C.c_uint,
+                                  C.c_uint, C.c_ulong, C.c_ulong]
+x.XGetSelectionOwner.restype = C.c_ulong
+x.XGetSelectionOwner.argtypes = [C.c_void_p, C.c_ulong]
+x.XSetSelectionOwner.argtypes = [C.c_void_p, C.c_ulong, C.c_ulong, C.c_ulong]
+x.XSendEvent.argtypes = [C.c_void_p, C.c_ulong, C.c_int, C.c_long, C.POINTER(XEvent)]
 x.XFlush.argtypes = [C.c_void_p]
 x.XPending.argtypes = [C.c_void_p]
 x.XNextEvent.argtypes = [C.c_void_p, C.POINTER(XEvent)]
@@ -60,6 +88,7 @@ if not d:
 root = x.XDefaultRootWindow(d)
 fd = x.XConnectionNumber(d)
 prop = x.XInternAtom(d, b"_VEDABASE_NUDGE", 0)
+nudger = x.XInternAtom(d, b"_VEDABASE_NUDGER", 0)
 ev = XEvent()
 
 
@@ -68,17 +97,41 @@ def nudge():
     x.XFlush(d)
 
 
+if sys.argv[1] == "running":
+    sys.exit(0 if x.XGetSelectionOwner(d, nudger) else 3)
+
 if sys.argv[1] == "every":
     period = float(sys.argv[2])
+    if x.XGetSelectionOwner(d, nudger):
+        sys.exit(0)
+    win = x.XCreateSimpleWindow(d, root, 0, 0, 1, 1, 0, 0, 0)
+    nudge()
+    x.XSetSelectionOwner(d, nudger, win, 0)  # CurrentTime
+    if x.XGetSelectionOwner(d, nudger) != win:  # a round trip: another came first
+        sys.exit(0)
+    due = time.monotonic() + period
     while True:
-        nudge()
-        # Readable when an event comes that every client gets (MappingNotify),
-        # or when the server goes away: Xlib then ends this process.
-        if select.select([fd], [], [], period)[0]:
+        left = due - time.monotonic()
+        if left <= 0:
+            nudge()
+            due = time.monotonic() + period
+        # Readable when an event comes (one that every client gets, such as
+        # MappingNotify, or one for the selection), or when the server goes
+        # away: Xlib then ends this process.
+        elif select.select([fd], [], [], left)[0]:
             while x.XPending(d):
                 x.XNextEvent(d, C.byref(ev))
+                if ev.type == 29:  # SelectionClear: another took over
+                    sys.exit(0)
+                if ev.type == 30:  # SelectionRequest: there is nothing to give
+                    req = ev.request
+                    out = XEvent()
+                    out.reply.type, out.reply.display, out.reply.requestor = 31, d, req.requestor
+                    out.reply.selection, out.reply.target, out.reply.time = req.selection, req.target, req.time
+                    x.XSendEvent(d, req.requestor, 0, 0, C.byref(out))
+                    x.XFlush(d)
 
-# Watch for a new owner before nudging, so that it cannot come unseen.
+# once: watch for a new owner before nudging, so that it cannot come unseen.
 event_base = C.c_int()
 try:
     xf = C.CDLL("libXfixes.so.3")
@@ -97,7 +150,7 @@ end = time.monotonic() + 0.5
 while True:
     while x.XPending(d):
         x.XNextEvent(d, C.byref(ev))
-        if ev.type == event_base.value and ev.selection.owner:
+        if ev.type == event_base.value and ev.fixes.owner:
             sys.exit(0)
     left = end - time.monotonic()
     if left <= 0:

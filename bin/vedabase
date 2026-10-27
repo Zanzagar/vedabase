@@ -111,7 +111,10 @@ cmd_web() {
   done
   if web_running; then
     if [[ -n $(vb_prefix_pids) ]]; then
-      # Already showing: give the way in again rather than start a second Folio.
+      # Already showing: give the way in again rather than start a second
+      # Folio, and a nudger again if the one it had is gone.
+      vb_display_use web
+      vb_nudger_ensure
       printf 'VedaBase is already running in the browser viewer (to open another infobase\nthere, use File > Open in it).\n\n'
       web_instructions
       return 0

@@ -142,14 +142,19 @@ vb_websockify_alive() {
 # wakes it (lib/x11-nudge.py says why), and with no window manager nothing on
 # the viewer's display makes one, so noVNC's clipboard panel would never see a
 # copy: a nudger nudges it once a second, which costs Folio nothing measurable.
-# It holds a lock named after its display while it runs, so the kernel lets
-# one run per display, and it ends when its display does: nothing finds it by
-# PID, and a display that outlives 'vedabase stop' keeps only its own lock.
-vb_nudge_lock() { printf '%s/web/nudge-%s.lock\n' "$VB_RUN" "${1#:}"; } # DISPLAY
-vb_nudger_running() { # DISPLAY
-  local rc=0
-  flock -n -E 3 "$(vb_nudge_lock "$1")" true 2>/dev/null || rc=$?
-  ((rc == 3))
+# The X server itself keeps it single: once its first nudge has gone through,
+# the nudger owns an X selection, which the server frees when either goes
+# away, and a second one finding it taken leaves. Nothing finds it by PID or
+# lock file, and it ends with its display. On $DISPLAY: start one unless one
+# runs, and say so if none comes up within 3 s.
+vb_nudger_ensure() {
+  local i
+  setsid python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 >>"$VB_RUN/web/nudge.log" 2>&1 </dev/null &
+  for i in {1..15}; do
+    python3 -I "$VB_REPO/lib/x11-nudge.py" running >/dev/null 2>&1 && return 0
+    sleep 0.2
+  done
+  vb_warn "text copied in VedaBase will not reach the browser's clipboard panel: its helper did not start (see $VB_RUN/web/nudge.log)"
 }
 
 vb_web_start() { # GEOMETRY
@@ -157,8 +162,6 @@ vb_web_start() { # GEOMETRY
   port=$(vb_web_port)
   vb_display_alive web || vb_web_password
   vb_display_start web "$1" VncAuth
-  setsid flock -n "$(vb_nudge_lock "$DISPLAY")" python3 -I "$VB_REPO/lib/x11-nudge.py" every 1 \
-    >>"$d/nudge.log" 2>&1 </dev/null &
   if ! vb_websockify_alive; then
     if [[ -n $(ss -Htln "sport = :$port" 2>/dev/null) ]]; then
       vb_die "port $port is already in use; pick another with VEDABASE_WEB_PORT=6081 vedabase web"
@@ -172,18 +175,22 @@ vb_web_start() { # GEOMETRY
   fi
   sleep 1
   vb_websockify_alive || vb_die "websockify did not start; see $d/websockify.log"
-  vb_nudger_running "$DISPLAY" ||
-    vb_warn "text copied in VedaBase will not reach the browser's clipboard panel: its helper did not start (see $d/nudge.log)"
+  vb_nudger_ensure
 }
 
 vb_web_stop() {
-  local pidf=$VB_RUN/web/websockify.pid display=''
+  local pidf=$VB_RUN/web/websockify.pid display='' i
   if vb_websockify_alive; then kill "$(<"$pidf")" 2>/dev/null || true; fi
   rm -f -- "$pidf"
   if [[ -s $VB_RUN/web/display ]]; then display=$(<"$VB_RUN/web/display"); fi
   vb_display_stop web
-  # The nudger ends with its display: a lock still held means the display lives on.
-  if [[ -n $display ]] && ! flock -w 5 "$(vb_nudge_lock "$display")" true 2>/dev/null; then
-    vb_warn "the browser viewer's display $display did not stop; see $VB_RUN/web/xvnc.log"
-  fi
+  # The nudger ends with the display. A display that still answers 5 s later
+  # lives on (a dying one may take a connection and never reply: timeout).
+  [[ -n $display ]] || return 0
+  for i in {1..25}; do
+    DISPLAY=$display XAUTHORITY=$VB_RUN/web/xauth timeout 2 xdotool getdisplaygeometry \
+      >/dev/null 2>&1 || return 0
+    sleep 0.2
+  done
+  vb_warn "the browser viewer's display $display did not stop; see $VB_RUN/web/xvnc.log"
 }

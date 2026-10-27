@@ -51,13 +51,15 @@ web_x() { # COMMAND...: on the browser viewer's display
   DISPLAY=$(<"$VH/run/web/display") XAUTHORITY=$VH/run/web/xauth PATH=$VH/tools/root/usr/bin:$PATH \
     LD_LIBRARY_PATH=$VH/tools/root/usr/lib/x86_64-linux-gnu "$@"
 }
-web_lock() { printf '%s\n' "$VH/run/web/nudge-$(tr -dc 0-9 <"$VH/run/web/display").lock"; }
-nudging() { # LOCK: does a nudger hold it? One holds its display's lock while it runs.
-  flock -n -E 3 "$1" true 2>/dev/null
-  test $? -eq 3
+nudger_up() { web_x python3 -I "$VH/app/lib/x11-nudge.py" running >/dev/null 2>&1; }
+nudgers() { # DISPLAY: this home's nudgers on it, found as prefix_procs finds Wine
+  local p
+  for p in $(pgrep -u "$(id -u)" -f 'x11-nudge[.]py every'); do
+    grep -qzxF "DISPLAY=$1" "/proc/$p/environ" 2>/dev/null &&
+      grep -qzxF "XAUTHORITY=$VH/run/web/xauth" "/proc/$p/environ" 2>/dev/null && echo "$p"
+  done
 }
-lock=$(web_lock)
-check "the browser viewer runs a nudger for Wine's copies" nudging "$lock"
+check "the browser viewer runs a nudger for Wine's copies" nudger_up
 for _ in $(seq 1 60); do [[ -n $(web_x xdotool search --name '^Folio Views' 2>/dev/null) ]] && break; sleep 0.5; done
 sleep 4 # the infobase opening
 web_x xdotool mousemove 430 66 click --repeat 3 --delay 80 1; sleep 0.5
@@ -94,34 +96,53 @@ check "a second vedabase web gives the link again" grep -q 'already running' "$B
 bash -c "exec -a 'python3 -I $VH/app/lib/x11-nudge.py every 1' sleep 120" &
 decoy=$!
 printf '%s\n' "$decoy" >"$VH/run/web/nudge.pid"
+display=$(<"$VH/run/web/display")
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 check "stop leaves no display running" test "$(home_xvncs "$VH")" -eq 0
 check "stop leaves no Wine running" test "$(prefix_procs "$VH/prefix")" -eq 0
-nudging "$lock"
-check "stop ends the nudger" test $? -ne 0
+check "stop ends the nudger" test -z "$(nudgers "$display")"
 check "  ... and leaves a process that only names it alone" kill -0 "$decoy"
 kill "$decoy"; wait "$decoy" 2>/dev/null
-# A nudger that cannot start is reported, not passed over.
-mkdir -p "$B/no-python"
-printf '#!/bin/sh\nexit 1\n' >"$B/no-python/python3"; chmod +x "$B/no-python/python3"
-PATH=$B/no-python:$PATH VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-no-python.out" 2>&1
-check "a viewer whose nudger cannot start says so" grep -q "clipboard panel" "$B/web-no-python.out"
+rm -f -- "$VH/run/web/nudge.pid"
+# A nudger that fails after starting (here: after 2 s) is reported, and the
+# next 'vedabase web' starts one in its place.
+mkdir -p "$B/late-python"
+printf '#!/bin/sh\ncase " $* " in *" every "*) sleep 2; exit 1 ;; esac\nexec %s "$@"\n' "$(command -v python3)" \
+  >"$B/late-python/python3"
+chmod +x "$B/late-python/python3"
+PATH=$B/late-python:$PATH VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-late-python.out" 2>&1
+check "a viewer whose nudger fails as it starts says so" grep -q "clipboard panel" "$B/web-late-python.out"
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-again.out" 2>&1
+check "  ... and 'vedabase web' run again starts one" nudger_up
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 # A display that outlives 'vedabase stop' (here its PID record names another
 # process) is reported, and the next viewer gets a nudger all the same.
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web3.out" 2>&1
-survivor=$(cat "$VH/run/web/xvnc.pid") old_lock=$(web_lock)
+survivor=$(cat "$VH/run/web/xvnc.pid") old_display=$(<"$VH/run/web/display")
 echo "$$" >"$VH/run/web/xvnc.pid"
 run "$H/.local/bin/vedabase" stop >"$B/stop-survivor.out" 2>&1
 check "a display that outlives stop is reported" grep -q 'did not stop' "$B/stop-survivor.out"
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web4.out" 2>&1
-new_lock=$(web_lock)
-check "  ... and the next viewer gets a nudger of its own" nudging "$new_lock"
-check "  ... for a display of its own" test "$new_lock" != "$old_lock"
-kill "$survivor"
+check "  ... and the next viewer gets a nudger of its own" nudger_up
+kill "$survivor"; sleep 1
+check "  ... while the survivor's ends with the survivor" test -z "$(nudgers "$old_display")"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
-nudging "$old_lock"
-check "  ... and the survivor's nudger ends with it" test $? -ne 0
+# A nudger held up past the end of its display must not cost the next display
+# its own, even when the new display takes the old one's number.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web5.out" 2>&1
+first=$(<"$VH/run/web/display")
+held=$(nudgers "$first")
+check "  (a nudger to hold up is found)" test -n "$held"
+for p in $held; do kill -STOP "$p"; done
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web6.out" 2>&1
+echo "      display $first, then $(<"$VH/run/web/display")"
+check "a nudger held up past its display's end leaves the next display one of its own" nudger_up
+for p in $held; do kill -CONT "$p"; done
+sleep 1
+check "  ... which goes on once the held one ends" nudger_up
+check "  ... and the held one does end" test -z "$(for p in $held; do kill -0 "$p" 2>/dev/null && echo "$p"; done)"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
 
 run "$H/.local/bin/vedabase" backup "$B/backup.tar.gz" >"$B/backup.log" 2>&1
 check "backup succeeds" test $? -eq 0
