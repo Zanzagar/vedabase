@@ -1,0 +1,41 @@
+# The legacy diacritics in VedaBase's text, and the Unicode letters they stand for.
+# VedaBase's fonts (Balaram, ScaGoudy, ScaTimes and their families) draw these
+# Sanskrit letters in place of ordinary Latin-1 ones, so text copied out of Folio
+# holds the Latin-1 letter (left) where the reader saw the Sanskrit one (right).
+# Checked against the fonts the installers download: Balaram builds most of these
+# glyphs from parts (ñ is s + dot, ï is n + tilde), and all 31 match what the
+# fonts draw, except that at È the SCA fonts draw ü (docs/how-it-works.md).
+# One character becomes one, except û: l plus U+0310 COMBINING CANDRABINDU.
+# UTF-8, tab-separated; lines starting with # are comments. Read by
+# bin/vedabase-unicode and windows/vedabase-unicode.ps1.
+Ï	Ñ
+ï	ñ
+Ä	Ā
+ä	ā
+É	Ī
+é	ī
+Ç	Ś
+ç	ś
+Ü	Ū
+ü	ū
+Ò	Ḍ
+ò	ḍ
+Ù	Ḥ
+ù	ḥ
+ß	Ḷ
+ÿ	ḷ
+À	Ṁ
+à	ṁ
+Ì	Ṅ
+ì	ṅ
+Ë	Ṇ
+ë	ṇ
+Å	Ṛ
+å	ṛ
+È	Ṝ
+è	ṝ
+Ñ	Ṣ
+ñ	ṣ
+Ö	Ṭ
+ö	ṭ
+û	l̐

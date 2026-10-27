@@ -1,0 +1,83 @@
+#!/bin/bash
+# vedabase-unicode: turn text copied out of VedaBase into Unicode.
+#   vedabase-unicode -    converts standard input to standard output
+# Exit status: 0 converted; 3 nothing to convert; 4 not converted, because the
+# text already holds Unicode letters the conversion makes (ā, ṣ, ...): once
+# converted, ñ means ñ, and converting again would turn it into ṣ.
+# Linux runs it as 'vedabase unicode'; the Mac's "VedaBase Unicode" app runs it
+# as it is. Written for the bash 3.2 and BSD tools that macOS ships.
+set -euo pipefail
+
+VB_UNICODE_MAP=${VB_UNICODE_MAP:-$(cd "$(dirname "$0")/.." && pwd)/lib/balaram-unicode.tsv}
+work=$(mktemp -d "${TMPDIR:-/tmp}/vedabase-unicode.XXXXXX")
+trap 'rm -rf -- "$work"' EXIT
+
+# The table's rows, comments left out, as "legacy<TAB>unicode".
+rows() { grep -v '^#' "$VB_UNICODE_MAP" | grep . || true; }
+
+# One s///g per row. The table maps ï to ñ and ñ to ṣ, so the rows whose
+# letter another row produces (ñ, Ñ) run first: an ñ made from ï is then never
+# converted again, and the rows act as one simultaneous mapping.
+make_sed() {
+  local legacy unicode
+  rows | cut -f2 >"$work/values"
+  rows | while IFS='	' read -r legacy unicode; do
+    if grep -qxF -- "$legacy" "$work/values"; then printf 's/%s/%s/g\n' "$legacy" "$unicode"; fi
+  done
+  rows | while IFS='	' read -r legacy unicode; do
+    if ! grep -qxF -- "$legacy" "$work/values"; then printf 's/%s/%s/g\n' "$legacy" "$unicode"; fi
+  done
+}
+
+# The Unicode letters the table makes that are not legacy letters too (all
+# but ñ and Ñ): text holding one of them is not fresh from VedaBase.
+make_refuse() {
+  rows | cut -f1 >"$work/keys"
+  rows | cut -f2 | grep -vxF -f "$work/keys" || true
+}
+
+# convert IN OUT: OUT gets the converted text (or IN as it was, unless it is
+# converted). Returns 0, 3 or 4, as the exit status above.
+convert() {
+  if LC_ALL=C grep -qF -f "$work/refuse" -- "$1"; then
+    cp -- "$1" "$2"
+    return 4
+  fi
+  # A sed may end its output with a newline the input lacked, so give the
+  # input one and take it off again afterwards.
+  cp -- "$1" "$work/sed-in"
+  local last='' size
+  [[ ! -s $1 ]] || last=$(tail -c 1 -- "$1" | od -An -tx1 | tr -d ' \n')
+  [[ -z $last || $last == 0a ]] || printf '\n' >>"$work/sed-in"
+  LC_ALL=C sed -f "$work/map.sed" "$work/sed-in" >"$work/sed-out"
+  if [[ -n $last && $last != 0a ]]; then
+    size=$(wc -c <"$work/sed-out" | tr -d ' ')
+    head -c "$((size - 1))" "$work/sed-out" >"$2"
+  else
+    cp -- "$work/sed-out" "$2"
+  fi
+  if cmp -s -- "$1" "$2"; then return 3; fi
+  return 0
+}
+
+message() { # STATUS
+  case $1 in
+    3) echo "Nothing to convert: the text has none of VedaBase's old diacritics." ;;
+    4) echo "Not converted: the text already has Unicode diacritics (such as ā or ṣ), so it is not fresh from VedaBase." ;;
+  esac
+}
+
+make_sed >"$work/map.sed"
+make_refuse >"$work/refuse"
+case ${1:-} in
+  -)
+    cat >"$work/in"
+    status=0
+    convert "$work/in" "$work/out" || status=$?
+    cat -- "$work/out"
+    [[ $status == 0 ]] || message "$status" >&2
+    exit "$status" ;;
+  *)
+    echo "usage: vedabase-unicode -   (converts standard input to standard output)" >&2
+    exit 2 ;;
+esac

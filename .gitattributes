@@ -5,6 +5,8 @@ bin/* text eol=lf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 *.reg binary
+# Tables the shell scripts read with cut and sed: a CR would end up in the data.
+*.tsv text eol=lf
 
 # For agents and the maintainer, not for the people the ZIP goes to.
 HANDOFF.md export-ignore
