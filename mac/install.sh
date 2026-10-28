@@ -15,8 +15,10 @@ source "$VB_REPO/lib/fetch.sh"
 # shellcheck source=../lib/setup.sh
 source "$VB_REPO/lib/setup.sh"
 
-# Stable branch, like the Linux build; checksum from the GitHub release.
+# Stable branch, like the Linux build; checksum from the GitHub release. This
+# repository's releases keep a copy of the same file, for when Gcenx removes it.
 MAC_WINE_URL=https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz
+MAC_WINE_COPY=https://github.com/Zanzagar/vedabase/releases/download/mac-wine-11.0_1/wine-stable-11.0_1-osx64.tar.xz
 MAC_WINE_SHA256=b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388
 MAC_APPS=$HOME/Applications
 
@@ -70,6 +72,11 @@ if [[ ! -x $VB_WINE_DIR/bin/wine ]]; then
   mkdir -p "$VB_HOME/cache" "$VB_HOME/wine"
   vb_say "Downloading Wine for macOS (185 MB)"
   status=$(curl -sIL -o /dev/null -w '%{http_code}' "$MAC_WINE_URL") || status=''
+  # The same build, kept in this repository's releases, before any other.
+  if [[ $status == 404 && $(curl -sIL -o /dev/null -w '%{http_code}' "$MAC_WINE_COPY" 2>/dev/null) == 200 ]]; then
+    vb_warn "the pinned Wine build is gone from Gcenx's page; using this installer's copy of it"
+    MAC_WINE_URL=$MAC_WINE_COPY status=200
+  fi
   if [[ $status == 404 ]]; then
     # Gcenx retags releases and removes old files. Fall back to the newest
     # stable build, checked against the SHA-256 GitHub publishes for it.
