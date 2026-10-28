@@ -40,8 +40,9 @@ matters, with the static checks before every commit:
 - **Static:** ShellCheck (`-x`, SC2034 aside: library variables look unused
   alone); `bash -n` with a real bash 3.2 for `lib/common.sh`, `lib/fetch.sh`,
   `lib/setup.sh`, `mac/install.sh`, `Install-VedaBase-Mac.command` and
-  `bin/vedabase-unicode`; a PowerShell parse of `windows/install-vedabase.ps1`
-  and `windows/vedabase-unicode.ps1`.
+  `bin/vedabase-unicode`; a PowerShell parse of `windows/install-vedabase.ps1`,
+  `windows/vedabase-unicode.ps1` and `tests/windows/check.ps1` (the Windows
+  test kit, run on a Windows PC after an install; ASCII only, like the others).
 - **`tests/unicode.sh`:** the Unicode converter, no install needed; give it
   `VB_TEST_BASH32` and `VB_TEST_PWSH` (the archived `pwsh/root/pwsh`), or it
   skips the bash 3.2 and Windows halves. **`tests/nudge.sh`:** the browser

@@ -38,6 +38,10 @@ Settings, as environment variables:
 Before every commit, also run ShellCheck (`shellcheck -x`; SC2034 aside,
 since library variables look unused on their own), `bash -n` with bash 3.2
 on the files macOS uses (`bin/vedabase-unicode` among them), and a
-PowerShell parse of `windows/install-vedabase.ps1` and
-`windows/vedabase-unicode.ps1`. Nothing here runs the Windows installer: only
-a real Windows PC can (`docs/testing.md`).
+PowerShell parse of `windows/install-vedabase.ps1`,
+`windows/vedabase-unicode.ps1` and `tests/windows/check.ps1`, which must stay
+plain ASCII. Nothing here runs the Windows installer: only a real Windows PC
+can (`docs/testing.md`). There, after an install, `windows/check.ps1` checks
+what a script can (files, registry, shortcuts and their hotkey, VedaBase
+Unicode on known text) and lists what needs a person; it has not yet run on
+Windows ([windows/README.md](windows/README.md)).

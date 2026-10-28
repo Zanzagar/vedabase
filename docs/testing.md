@@ -47,6 +47,10 @@ reinstalling without signing out of Windows.
 
 ## Windows only
 
+On the PC itself, `tests\windows\check.ps1` (in a clone of the repository)
+checks much of what follows by itself and lists what needs a person; see
+`tests/windows/README.md`. It has not yet run on Windows.
+
 - Record which prompts appeared (UAC, SmartScreen, "Open File – Security
   Warning"), so the README can describe them exactly.
 - After the install:
