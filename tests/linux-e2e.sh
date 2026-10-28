@@ -4,7 +4,8 @@
 # with CHROME_EXE set: it connects, survives six wrong passwords, takes typing,
 # shows a copy made in the browser in noVNC's clipboard panel; its link names
 # the port it listens on), stop, install.sh and the viewer's commands waiting
-# for one another, and a backup -> --reinstall --restore round trip.
+# for one another (each keeps the home it locked, and none works on once the
+# lock's holder is killed), and a backup -> --reinstall --restore round trip.
 set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/linux-e2e H=$B/home VH=$B/vb PORT=${VB_TEST_PORT:-6091}
@@ -371,12 +372,136 @@ hold "$repair"
 resumer=$!
 started=$SECONDS
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+stopped=$?
 took=$((SECONDS - started))
 wait "$resumer"
 wait "$repair"
 rc=$?
-check "'vedabase stop' run while install.sh runs waits for it to finish (${took} s; install.sh exit $rc)" \
-  test "$took" -ge 5 -a "$rc" -eq 0
+check "'vedabase stop' run while install.sh runs waits for it to finish, then stops (${took} s, exit $stopped; install.sh exit $rc)" \
+  test "$took" -ge 5 -a "$stopped" -eq 0 -a "$rc" -eq 0
+# The copy of install.sh that does the work keeps the home its caller locked.
+# Here install.sh, given no --home, takes the home from the configuration and
+# waits for its lock, which the test holds; meanwhile the configuration comes
+# to name another home, as an install.sh run for that one would make it, and
+# only then is the lock let go: the repair must still be of the home that was
+# locked, and the other must never be made.
+other=$B/other-home
+printf '%s\n' "$VH" >"$H/.config/vedabase/home"
+# shellcheck disable=SC2016 # $1, $2 and $3 are the holder's own arguments
+flock "$VH/run/lock" bash -c 'for _ in $(seq 1 100); do grep -q "Waiting for" "$1" 2>/dev/null && break; sleep 0.1; done
+  printf "%s\n" "$2" >"$3"' _ "$B/repair-config.log" "$other" "$H/.config/vedabase/home" &
+holder=$!
+for _ in $(seq 1 50); do flock -n "$VH/run/lock" true || break; sleep 0.1; done
+run ./install.sh "${src[@]}" >"$B/repair-config.log" 2>&1
+rc=$?
+wait "$holder"
+check "  (install.sh, given no --home, waits for the lock the test holds)" grep -q 'Waiting for' "$B/repair-config.log"
+check "install.sh repairs the home it locked, though the configuration names another by then (exit $rc)" \
+  test "$rc" -eq 0 -a "$(grep -cxF "==> Installing into $VH" "$B/repair-config.log")" -eq 1
+check "  ... and never makes the other home" test ! -e "$other"
+# A SIGKILL of the copy of install.sh that holds the lock, which no trap can
+# defer, frees the lock at once; the kernel then ends the copy that does the
+# work too (setpriv --pdeathsig), so that it never goes on without the lock.
+# Here that copy is held up (SIGSTOP) as soon as it has begun, so that it is
+# still there, having changed nothing yet, when its caller is killed. It is
+# found by what it is: a child of the copy killed, run with VB_INSTALL_LOCKED=1
+# on this checkout's install.sh.
+is_rerun() { # PID
+  grep -qzxF VB_INSTALL_LOCKED=1 "/proc/$1/environ" 2>/dev/null &&
+    grep -qzxF -- "$(readlink -f -- "$REPO/install.sh")" "/proc/$1/cmdline" 2>/dev/null
+}
+HOME=$H ./install.sh --home "$VH" "${src[@]}" >"$B/repair-kill.log" 2>&1 &
+repair=$!
+for _ in $(seq 1 100); do grep -q 'Installing into' "$B/repair-kill.log" && break; sleep 0.1; done
+worker=''
+for p in $(pgrep -P "$repair"); do is_rerun "$p" && worker=$p; done
+check "  (the copy of install.sh that does the repair is found: PID ${worker:-none})" test -n "$worker"
+[[ -z $worker ]] || hold "$worker"
+kill -KILL "$repair"
+wait "$repair" 2>/dev/null
+gone=0
+for _ in $(seq 1 20); do [[ -n $worker ]] && ! is_rerun "$worker" && { gone=1; break; }; sleep 0.1; done
+check "a SIGKILL of only the copy of install.sh that holds the lock ends its re-run too (within 2 s)" test "$gone" -eq 1
+started=$SECONDS
+run "$H/.local/bin/vedabase" stop >"$B/stop-after-kill.out" 2>&1
+stopped=$?
+took=$((SECONDS - started))
+check "  ... and a 'vedabase stop' started then has the lock at once, and stops (${took} s, exit $stopped)" \
+  test "$stopped" -eq 0 -a "$took" -le 2
+# A re-run that outlived its caller is ended here, and the install repaired,
+# whatever step either was killed at.
+if [[ -n $worker ]] && is_rerun "$worker"; then
+  kill -KILL "$worker"
+  for _ in $(seq 1 20); do is_rerun "$worker" || break; sleep 0.1; done
+fi
+run ./install.sh --home "$VH" "${src[@]}" >"$B/repair-after-kill.log" 2>&1
+rc=$?
+check "  (install.sh run again repairs the install: exit $rc)" test "$rc" -eq 0
+# A 'vedabase' command run under the lock keeps the home it locked too. Here
+# 'vedabase stop', with no VEDABASE_HOME, waits for the lock of the home the
+# configuration names, where a viewer runs; meanwhile the configuration comes
+# to name another home: the stop must still end this viewer, and never make
+# the other home.
+VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web-config.out" 2>&1
+check "  (a display to stop is running)" test "$(home_xvncs "$VH")" -eq 1
+other=$B/other-home-2
+# The holder lets go once the stop's flock(1) waits, its command line naming
+# this install's launcher.
+# shellcheck disable=SC2016 # $1, $2 and $3 are the holder's own arguments
+flock "$VH/run/lock" bash -c 'for _ in $(seq 1 100); do
+    for p in $(pgrep -u "$(id -u)" -x flock); do grep -qzxF -- "$1" "/proc/$p/cmdline" 2>/dev/null && break 2; done
+    sleep 0.1
+  done
+  printf "%s\n" "$2" >"$3"' _ "$H/.local/bin/vedabase" "$other" "$H/.config/vedabase/home" &
+holder=$!
+for _ in $(seq 1 50); do flock -n "$VH/run/lock" true || break; sleep 0.1; done
+run "$H/.local/bin/vedabase" stop >"$B/stop-config.out" 2>&1
+stopped=$?
+wait "$holder"
+check "'vedabase stop' ends the viewer of the home it locked, though the configuration names another by then (exit $stopped)" \
+  test "$stopped" -eq 0 -a "$(home_xvncs "$VH")" -eq 0
+check "  ... and never makes the other home" test ! -e "$other"
+printf '%s\n' "$VH" >"$H/.config/vedabase/home"
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# The same for a command run under the lock: flock(1) holds it, and the
+# kernel ends the command if flock(1) dies first. Here 'vedabase web' is held
+# up (SIGSTOP) as soon as it runs under flock(1), which is then killed. It is
+# found by what it is: a child of that flock(1), run with VB_LOCKED=1 on this
+# install's launcher, and bash by then (setpriv, before it, could still be
+# about to ask for the signal).
+is_locked() { # PID
+  grep -qzxF VB_LOCKED=1 "/proc/$1/environ" 2>/dev/null &&
+    grep -qzxF -- "$H/.local/bin/vedabase" "/proc/$1/cmdline" 2>/dev/null
+}
+VEDABASE_WEB_PORT=$PORT HOME=$H "$H/.local/bin/vedabase" web >"$B/web-flock-kill.out" 2>&1 &
+outer=$!
+locker='' locked=''
+for _ in $(seq 1 100); do
+  locker=$(pgrep -P "$outer" -x flock) || locker=''
+  for p in $([[ -z $locker ]] || pgrep -P "$locker"); do
+    is_locked "$p" && [[ $(readlink "/proc/$p/exe" 2>/dev/null) == */bash ]] && locked=$p
+  done
+  [[ -n $locked ]] && break
+  sleep 0.05
+done
+check "  (the 'vedabase web' run under flock(1) is found: PID ${locked:-none})" test -n "$locked"
+[[ -z $locked ]] || hold "$locked"
+[[ -z $locker ]] || kill -KILL "$locker"
+wait "$outer" 2>/dev/null
+gone=0
+for _ in $(seq 1 20); do [[ -n $locked ]] && ! is_locked "$locked" && { gone=1; break; }; sleep 0.1; done
+check "a SIGKILL of the flock(1) that holds the lock for a 'vedabase' command ends the command too (within 2 s)" test "$gone" -eq 1
+if [[ -n $locked ]] && is_locked "$locked"; then
+  kill -KILL "$locked"
+  for _ in $(seq 1 20); do is_locked "$locked" || break; sleep 0.1; done
+fi
+started=$SECONDS
+run "$H/.local/bin/vedabase" stop >"$B/stop-after-flock-kill.out" 2>&1
+stopped=$?
+took=$((SECONDS - started))
+check "  ... and 'vedabase stop' then ends what it had started (${took} s, exit $stopped)" \
+  test "$stopped" -eq 0 -a "$(home_xvncs "$VH")" -eq 0 -a "$(prefix_procs "$VH/prefix")" -eq 0 \
+  -a -z "$(ss -Htln "sport = :$PORT")"
 
 run "$H/.local/bin/vedabase" backup "$B/backup.tar.gz" >"$B/backup.log" 2>&1
 check "backup succeeds" test $? -eq 0

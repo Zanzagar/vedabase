@@ -85,11 +85,15 @@ vb_init_paths
 # take (bin/vedabase, with_lock), so that it and they never interleave. This
 # copy of the script holds it and runs the script again, which does the work,
 # with the lock's descriptor closed: nothing the install starts and leaves
-# running (the wizard, Xvnc, Wine) holds it. flock(1), which with_lock runs,
-# dies at Ctrl-C or a closed terminal and lets the lock go while the second
-# copy is still cleaning up; the traps here only defer such a signal until
-# the second copy has ended. A signal sent to this copy alone, by its PID,
-# therefore waits until the install ends.
+# running (the wizard, Xvnc, Wine) holds it. The second copy works on the
+# home locked here: VEDABASE_HOME wins over the configuration, which may name
+# another by the time the lock is free (a --home resolves to it again). And
+# the kernel ends it if this copy dies first (setpriv --pdeathsig): a
+# SIGKILL, which no trap can defer, frees the lock at once. flock(1), which
+# with_lock runs, dies at Ctrl-C or a closed terminal and lets the lock go
+# while the second copy is still cleaning up; the traps here only defer such
+# a signal until the second copy has ended. INT, HUP or TERM sent to this
+# copy alone, by its PID, therefore waits until the install ends.
 if [[ -n ${VB_INSTALL_LOCKED:-} ]]; then
   unset VB_INSTALL_LOCKED
 else
@@ -106,7 +110,10 @@ else
   fi
   trap : INT HUP TERM
   rc=0
-  VB_INSTALL_LOCKED=1 "$BASH" "$VB_REPO/install.sh" ${args[@]+"${args[@]}"} 9>&- || rc=$?
+  pdeath=() # setpriv --pdeathsig needs util-linux 2.33 or later; see bin/vedabase
+  if setpriv --pdeathsig KILL true 2>/dev/null; then pdeath=(setpriv --pdeathsig KILL); fi
+  VB_INSTALL_LOCKED=1 VEDABASE_HOME=$VB_HOME ${pdeath[@]+"${pdeath[@]}"} \
+    "$BASH" "$VB_REPO/install.sh" ${args[@]+"${args[@]}"} 9>&- || rc=$?
   exit "$rc"
 fi
 mkdir -p "$VB_LOGS" "$VB_CONFIG_DIR"

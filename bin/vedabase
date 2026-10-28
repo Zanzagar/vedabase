@@ -242,9 +242,12 @@ EOF
 # leftovers. install.sh holds the same lock while it installs or repairs.
 # flock(1) holds the lock while the command runs and lets it go when the
 # command ends; -o keeps it out of what the command leaves running (Xvnc,
-# websockify, Wine), which outlives it.
+# websockify, Wine), which outlives it. The command works on the home locked
+# here (VEDABASE_HOME wins over the configuration, which install.sh may change
+# while this waits), and the kernel ends it if flock(1) dies first (setpriv
+# --pdeathsig), so that a SIGKILL of flock(1) never leaves it without the lock.
 with_lock() { # ARGS...: this script again, with ARGS, under the lock
-  local rc=0
+  local rc=0 pdeath=()
   if [[ -n ${VB_LOCKED:-} ]]; then
     unset VB_LOCKED
     return 0
@@ -252,9 +255,14 @@ with_lock() { # ARGS...: this script again, with ARGS, under the lock
   [[ -d $VB_HOME ]] || return 0
   command -v flock >/dev/null ||
     vb_die "the flock command is missing; install it once with:  sudo apt-get install util-linux"
+  # --pdeathsig needs util-linux 2.33 or later (Ubuntu 18.04 has 2.31): without
+  # it the command still runs under the lock, only flock(1)'s death no longer
+  # ends it.
+  if setpriv --pdeathsig KILL true 2>/dev/null; then pdeath=(setpriv --pdeathsig KILL); fi
   mkdir -p "$VB_RUN"
   chmod 700 "$VB_RUN"
-  VB_LOCKED=1 flock -o -w 60 -E 75 "$VB_RUN/lock" "$0" "$@" || rc=$?
+  VB_LOCKED=1 VEDABASE_HOME=$VB_HOME flock -o -w 60 -E 75 "$VB_RUN/lock" \
+    ${pdeath[@]+"${pdeath[@]}"} "$0" "$@" || rc=$?
   ((rc != 75)) || vb_die "another 'vedabase' command, or install.sh, is still busy with this installation; try again once it has finished"
   exit "$rc"
 }
