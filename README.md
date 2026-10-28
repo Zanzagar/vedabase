@@ -140,7 +140,9 @@ always works:
    window, then press Return.
 4. If macOS asks whether Terminal may access your Downloads folder, click
    **OK**. If you clicked *Don't Allow* before, turn Terminal on under
-   *System Settings → Privacy & Security → Files and Folders*.
+   *System Settings → Privacy & Security → Files and Folders* (on macOS 12 or
+   earlier: *System Preferences → Security & Privacy → Privacy → Files and
+   Folders*).
 
 Alternatively, on macOS 15 or later click **Done** on the warning, then go to
 **System Settings → Privacy & Security** and click **Open Anyway** next to the

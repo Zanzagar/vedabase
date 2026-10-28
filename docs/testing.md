@@ -103,6 +103,7 @@ checks much of what follows by itself and lists what needs a person; see
 
 ## macOS only
 
+- For a first run on a real Mac, follow [mac-field-test.md](mac-field-test.md).
 - Record what Gatekeeper showed for the `.command`, and which way past it
   worked.
 - On Apple Silicon, note whether Rosetta was installed and asked for a
