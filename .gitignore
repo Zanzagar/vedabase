@@ -19,3 +19,6 @@
 /downloads/
 /prefix/
 __pycache__/
+
+# Git worktrees the agent harness makes for parallel work.
+.claude/worktrees/
