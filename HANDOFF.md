@@ -114,9 +114,18 @@ public repository sees it**).
   (c659225); check 8 under GNOME Shell 46 on Wayland (adf4f6e, Open F); the È count
   (Open G); the Wine 11.20 trial (Open H); Devanagari research (Open I); and the
   viewer's link port and install.sh's lock, on the branch
-  `viewer/port-and-install-lock` (f2cd065; its Codex review found that the re-run
-  could work on another home than the one it locked, and that killing only the copy
-  holding the lock freed it while the re-run went on: being fixed). The main session
+  `viewer/port-and-install-lock`, **parked unmerged** (f2cd065, then f5aa5a7: the re-run
+  pinned to the locked home by VEDABASE_HOME and run under `setpriv --pdeathsig KILL`,
+  with a fallback where util-linux is older than 2.33; the same for with_lock; linux-e2e
+  106 and interrupt 13 passed). Its second Codex review still found, in the design
+  itself: pdeathsig ends the re-run's shell but not a foreground child it started (an
+  rm, cp or tar), which can work on after another command has the lock; a forwarded
+  `--home` is resolved again in the re-run (a symlink retargeted meanwhile leads it
+  elsewhere); and the new stop check can match its own lock holder. Next: let the copy
+  doing the work hold the lock itself, closing it (`9>&-`) only for what must outlive
+  the install (Xvnc, the wizard, every wine, wineboot and wineserver call), which
+  removes the re-run and both findings; fix that check. The link-port fix in f2cd065
+  is independent and can go first. The main session
   meanwhile deleted the three merged branches (Open E), refreshed journel's live
   install (its bullet), and published, then withdrew, a copy of the Gcenx Wine
   (Open 3).
@@ -406,7 +415,8 @@ I. **Devanagari** (the README's "What's next"; researched 2026-10-28, `session-6
    times out (`timeout 2 xdotool`) for a display that is gone, so an Xvnc frozen
    rather than surviving stops without the warning; no test covers it.~~ **► Done
    2026-10-27 (68ae51a3), with what five Codex reviews found besides: State.**
-   **► Added 2026-10-27 (68ae51a3), not done:** the link `vedabase web` and `status`
+   **► Added 2026-10-27 (68ae51a3), not done (► 2026-10-28: the first two fixed on the
+   parked branch `viewer/port-and-install-lock`, see State):** the link `vedabase web` and `status`
    print takes `VEDABASE_WEB_PORT` from the command at hand, not the port the viewer
    listens on (a viewer started on 6091 shows a 6080 link to a plain `vedabase
    status`); install.sh does not take the viewer's lock (`run/lock`); a PID found by a
