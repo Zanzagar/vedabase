@@ -466,13 +466,15 @@ turn each converted at once. Under GNOME Shell 46 as the window manager (X11,
 on the same kind of private display on a server), a word copied in Folio was
 not on the clipboard until another window took the focus, then arrived as
 `yauvanaà`; `vedabase unicode`, run without a change of focus as a keyboard
-shortcut runs it, converted the copy before it to *kaumāraṁ*. Before the
+shortcut runs it, converted the copy before it to *kaumāraṁ*. Under GNOME
+Shell 46 as a Wayland compositor (nested on such a display, with stand-ins
+for the systemd services of a login session, and Folio on the Xwayland it
+started), a word copied in Folio reached a Wayland program (`wl-paste`) as
+`yathä`, and after `vedabase unicode` Wayland programs read `yathā`. Before the
 nudges (*Wine 11.0 and the X clipboard*, above), a copy reached the browser
 viewer's clipboard only when something happened to wake Wine, in one session
 of five. Not verified: the converter on Windows or a real Mac, and copying out
-of Folio on a desktop someone logs in to, GNOME's Wayland session (nested on
-the server, GNOME Shell never started the Xwayland it starts on demand), KDE,
-or WSLg.
+of Folio on a desktop someone logs in to, KDE, or WSLg.
 
 **Not yet verified:** a real Mac; WineHQ bug 60494 on Apple Silicon; and on
 Windows: a second account, a standard user, an accepted restart, a note saved
