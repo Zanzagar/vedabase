@@ -104,6 +104,22 @@ public repository sees it**).
   reviews, probes, test outputs and GNOME launchers are archived in
   `session-68ae51a3-2026-10-27/`. Check 8 then ran under GNOME Shell 46 on X11
   (Open F).
+- **► 2026-10-27/28, session 68ae51a3, once the maintainer approved everything ("I
+  approve everything. Parallelize the work"): a parallel wave and the quick jobs.**
+  One Workflow, `wf_e8ff7ca7-c84` (seven tasks, one read-only verifier each on its
+  top claim; 7 of 7 returned and verified, six claims confirmed, the Devanagari one
+  refuted), notes in `session-68ae51a3-2026-10-27/wave/`. What came of it: a Windows test kit,
+  `tests/windows/check.ps1` (837d04e; never run on Windows; a harness with Windows
+  faked passed 79 of 79); a guide for the first Mac tester, `docs/mac-field-test.md`
+  (c659225); check 8 under GNOME Shell 46 on Wayland (adf4f6e, Open F); the È count
+  (Open G); the Wine 11.20 trial (Open H); Devanagari research (Open I); and the
+  viewer's link port and install.sh's lock, on the branch
+  `viewer/port-and-install-lock` (f2cd065; its Codex review found that the re-run
+  could work on another home than the one it locked, and that killing only the copy
+  holding the lock freed it while the re-run went on: being fixed). The main session
+  meanwhile deleted the three merged branches (Open E), refreshed journel's live
+  install (its bullet), and published, then withdrew, a copy of the Gcenx Wine
+  (Open 3).
 - `main` holds ~~everything up to the merge of `review/verdict-followups`
   (`5e1dd70..58eec55`)~~ **the installers (`5e1dd70..58eec55`, merged), then the
   claude-harness adoption (73c9683, cb405ea)** **► and the Windows fixes from the Atman runs
@@ -191,7 +207,11 @@ public repository sees it**).
   2026-10-27 (68ae51a3, by comparing files only): its launcher copy dates from
   2026-10-20 03:58 and has none of the 2026-10-26/27 merges (no `vedabase unicode`, no
   nudger, the old PID files); refreshing it, by running `install.sh` again with that
-  home, is the maintainer's call.**
+  home, is the maintainer's call.** **► Refreshed 2026-10-27 22:09 with the maintainer's
+  OK (main at 5b8bf42): `install.sh --home /journel/s0/$USER/vedabase` fetched xclip,
+  `doctor` passes, `vedabase unicode -` converts, and the two `.sdw` files are
+  byte-identical to a backup taken first
+  (`/journel/s1/$USER/archive/vedabase/live-notes-backup-2026-10-27/`).**
 - **Archive** on journel: `/journel/s1/$USER/archive/vedabase/` holds the Drive files
   (with the CrossOver guide `VedaBase_CrossOver_Installation.pdf`, which the devotee who
   shares the installers passed on, and Ekanatha's `README.docx`), a backup of the working
@@ -245,11 +265,12 @@ D. ~~**A stale line in the README:** "What's next" says the installers "already 
    around the freeze on exit, which they stopped doing in 37d4adb (the README's own
    Windows notes say so). A one-line fix, best made when A or B rewrites that section.~~
    **► Fixed 2026-10-26, with B.**
-E. **The merged branch `review/verdict-followups`** is still on GitHub and in journel's
+E. ~~**The merged branch `review/verdict-followups`** is still on GitHub and in journel's
    clone; deleting it needs the maintainer's OK (`.claude/settings.json` asks before a
    remote delete). **► So are `viewer/pid-identity` (merged 2026-10-27, still in
    journel's clone too) and `clipboard/wine-flush` on GitHub (merged 2026-10-26; gone
-   from journel's clone).**
+   from journel's clone).**~~ **► All three deleted 2026-10-27, on GitHub and in
+   journel's clone, with the maintainer's OK.**
 F. ~~**Copying text out of Folio under Wine** (found 2026-10-26).~~ **► Solved
    2026-10-26, session 4133d657.** In
    the browser viewer's display (Xvnc, a Wine virtual desktop, no window manager), a
@@ -285,7 +306,14 @@ F. ~~**Copying text out of Folio under Wine** (found 2026-10-26).~~ **► Solved
    to `kaumāraṁ`. GNOME Shell nested as a Wayland compositor started, but never the
    Xwayland it starts on demand (no systemd user session there; mutter 46 has no
    `autostart-xwayland`), so the Wayland half is still untried. Launchers, logs and
-   screenshots: the archive's `session-68ae51a3-2026-10-27/gnome/`.**
+   screenshots: the archive's `session-68ae51a3-2026-10-27/gnome/`.** **► 2026-10-28
+   (the wave, `session-68ae51a3-2026-10-27/wave/`gnome-wayland/): the Wayland half ran, nested on a private
+   display, with stand-ins for a login session's systemd (an LD_PRELOAD that makes
+   sd_pid_get_user_unit fail, and a fake systemd1 on the private bus) and a
+   workaround for libpulse connecting to $DISPLAY: Xwayland started (at start, and on
+   demand at Folio's first connection), the copy reached a Wayland program
+   (`wl-paste`) as `yathä`, and after `vedabase unicode` Wayland programs read
+   `yathā` (adf4f6e). Still untried: a desktop someone logs in to, KDE, WSLg.**
 G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw Ṝ, the
    table's letter, but every SCA face checked (ScaGoudy, ScaTimes: most of VedaBase's
    text) draws ü. Copied text has no font, so a ü typed in an SCA passage (a German
@@ -294,6 +322,16 @@ G. **È: Ṝ or ü?** (found 2026-10-26.) At È (U+00C8) the Balaram fonts draw 
    ignores case (it cannot count È apart from è). The maintainer's call, best after
    asking the devotee whether È turns up in text he copies; changing it is one table row
    (`lib/balaram-unicode.tsv`) and the corpus line in `tests/unicode.sh`.
+   **► 2026-10-28 (the wave, `session-68ae51a3-2026-10-27/wave/`e-grave/, Folio's own RTF exports of both
+   infobases, scanned with their fonts): in Roman text È occurs only in ScaGoudy,
+   drawn as ü, 98 times (VedaBase 4, VaniBase 94): 92 German ü (Würzberg, Dürckheim,
+   Zurück...) and 6 typos for Ī; none in a font that draws Ṝ there (Balaram, and
+   BellCentennial, which a verifier found follows the same layout). VedaBase's other
+   2,548 È are in Bengali and Devanagari fonts. So È → Ṝ is wrong for every Roman È
+   in the corpus, and È → ü would match what the reader sees. The devotee's draft
+   question now asks him to confirm È → ü; the one-row change waits on that. Side
+   finding: the converter is font-blind, so Latin-1 letters in Bengali and
+   Devanagari passages are converted too.**
 H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 on has
    a33000a6 (Kron4ek publishes 11.14 to 11.20 as development builds), and so will 12.0,
    due about January 2027; with it the nudges are not needed (they do no harm
@@ -302,7 +340,23 @@ H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 o
    is the natural moment (**► checked 2026-10-27: WineHQ's tags end at wine-11.20, as
    do Kron4ek's builds, 2026-10-18; no 11.0.x stable release yet**). The Mac's Gcenx
    build uses Wine's Mac driver, which this does
-   not concern.
+   not concern. **► 2026-10-28 (the wave, `session-68ae51a3-2026-10-27/wave/`wine-1120/): do not pin Kron4ek's
+   11.20. Every 11.20 Wine process commits one 32 GiB writable anonymous mapping
+   (upstream bug 60528: e6a8d663, in 11.20 only; fixed by 3c49b97b, in no released
+   tag), which Linux's default overcommit refuses where RAM plus swap is under 32 GiB:
+   an ordinary PC would fail at start (inferred; journel has 250 GiB, so 11.20 ran
+   there). The clipboard fix itself works: with no nudge, 11.20 delivered 9 of 9
+   copies within 2 s, 11.0 none of 3. Candidates: Kron4ek's 11.19 (a33000a6 without
+   e6a8d663), the next development release once 3c49b97b is in it, or 12.0; run the
+   archive's address-space probe on any. Under 11.20, `linux-e2e.sh` (85) and
+   `interrupt.sh` (13) passed with the nudges running.**
+I. **Devanagari** (the README's "What's next"; researched 2026-10-28, `session-68ae51a3-2026-10-27/wave/`devanagari/).
+   Nothing verified: the task's own claim (Bg 2.13's Devanagari drawn in RM
+   Devanagari, a table for its 199 glyph bytes and a prototype converter) was refuted
+   by its verifier, who found that Indevr 20 fits the screenshot better. Next: copy
+   Bg 2.13's Devanagari in Folio and read the clipboard's targets, "Folio Document
+   Format" among them, which may carry the font; then build the table from that
+   font.
 
 1. ~~One real run each on Windows (Atman) and on a Mac~~ ~~**Windows: settle the blank
    panes** (State) before the README's "choose Custom" is trusted~~ (solved; Custom works);
@@ -325,6 +379,15 @@ H. **A Wine with the clipboard fix** (found 2026-10-26). Every Wine from 11.14 o
 3. The maintainer decides whether to mirror the pinned Gcenx Wine as a release asset, so
    the Mac installer does not fall back to whatever Gcenx publishes next (review finding
    security:5); ~~it depends on 2~~ possible now that the repository is public.
+   **► 2026-10-27: the maintainer said yes; the copy was published as the release
+   `mac-wine-11.0_1` and withdrawn within the hour. A Codex review found, and its file
+   list confirmed, that the archive bundles LGPL and GPL libraries from MacPorts
+   (GnuTLS, nettle, GMP, libiconv, gettext, libunistring, libidn2, libtasn1) whose
+   exact corresponding sources, MacPorts' patches included, a copy must carry; the
+   release had only Wine's. The branch `mac/wine-copy` (6bd9c13) holds the installer
+   side, unmerged. The maintainer's choice: assemble those sources and publish them
+   with the copy; or make the installer stop with "needs an update" when the pinned
+   build is gone, instead of taking Gcenx's newest; or leave it as it is.**
 4. Smaller, optional: curl's internal retries re-download the same span (linux-fresh:15);
    a Windows install whose master infobase is missing could copy the staged one into
    place instead of re-running the wizard (windows-ps51:2); `vedabase web` could reprint
@@ -364,7 +427,9 @@ then filled its context (its handoff was already pushed, cfd0463), and
 **► ; `39638aaf-16e5-45b4-804f-0ea9a4936dda` (2026-10-26) was the first run from this
 folder (see below)** **► ; `4133d657-2db5-4198-943f-fb31b206014b` (2026-10-26) solved
 Open F** **► ; `68ae51a3-5b15-4047-9457-6178d1b9544a` (2026-10-27) found the browser
-viewer's processes by what they are (archived: `session-68ae51a3-2026-10-27/`)**.
+viewer's processes by what they are (archived: `session-68ae51a3-2026-10-27/`), then
+ran the wave `wf_e8ff7ca7-c84` (its agents' transcripts under this session's
+`subagents/workflows/`)**.
 ~~The first is also archived (above); the newest file in `docs/handoffs/` names what the
 second ran.~~ **► The first two are also archived (above); the 2026-10-20-0405 brief names
 what the second ran. From 2026-10-26, sessions run from this folder
