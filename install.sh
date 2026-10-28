@@ -36,6 +36,7 @@ EOF
 need_value() { (($# >= 2)) || vb_die "$1 needs a value (see --help)"; }
 
 name='' restore='' vanibase=1 reinstall=0 remote_re='^[^/:]+:'
+args=("$@") # for the run under the lock, below
 while (($#)); do
   case $1 in
     --home)
@@ -80,6 +81,34 @@ vb_init_paths
 [[ -e $VB_HOME ]] || { mkdir -p "$VB_HOME" && chmod 700 "$VB_HOME"; } # notes and licensed files: yours only
 [[ ! -e $VB_HOME/app || -e $VB_HOME/app/bin/vedabase ]] ||
   vb_die "$VB_HOME/app exists and is not VedaBase's; choose another --home"
+# An install or repair holds the lock that 'vedabase open', 'web' and 'stop'
+# take (bin/vedabase, with_lock), so that it and they never interleave. This
+# copy of the script holds it and runs the script again, which does the work,
+# with the lock's descriptor closed: nothing the install starts and leaves
+# running (the wizard, Xvnc, Wine) holds it. flock(1), which with_lock runs,
+# dies at Ctrl-C or a closed terminal and lets the lock go while the second
+# copy is still cleaning up; the traps here only defer such a signal until
+# the second copy has ended. A signal sent to this copy alone, by its PID,
+# therefore waits until the install ends.
+if [[ -n ${VB_INSTALL_LOCKED:-} ]]; then
+  unset VB_INSTALL_LOCKED
+else
+  mkdir -p "$VB_RUN"
+  chmod 700 "$VB_RUN"
+  exec 9>>"$VB_RUN/lock" || vb_die "could not open $VB_RUN/lock"
+  if ! flock -n 9; then
+    vb_say "Waiting for another 'vedabase' command, or install.sh, to finish with $VB_HOME"
+    flock -w 60 -E 75 9 || {
+      (($? != 75)) ||
+        vb_die "another 'vedabase' command, or install.sh, is still busy with $VB_HOME; run this again once it has finished"
+      vb_die "could not lock $VB_RUN/lock"
+    }
+  fi
+  trap : INT HUP TERM
+  rc=0
+  VB_INSTALL_LOCKED=1 "$BASH" "$VB_REPO/install.sh" ${args[@]+"${args[@]}"} 9>&- || rc=$?
+  exit "$rc"
+fi
 mkdir -p "$VB_LOGS" "$VB_CONFIG_DIR"
 printf '%s\n' "$VB_HOME" >"$VB_CONFIG_DIR/home"
 # Removes a folder this script made, even one a backup left unwritable.

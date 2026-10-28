@@ -173,6 +173,8 @@ vb_display_gone() { # NAME
 
 # --- browser viewer -------------------------------------------------------------
 
+# The port a viewer that starts now listens on. One that runs keeps its own
+# (vb_websockify_port).
 vb_web_port() { printf '%s\n' "${VEDABASE_WEB_PORT:-6080}"; }
 
 # A new password each time the viewer starts. VNC passwords stop at 8
@@ -196,15 +198,30 @@ vb_novnc_dir() {
 # websockify for this home's viewer, and the copies of itself it forks, one
 # per connection: their --unix-target is the viewer's socket.
 vb_websockify_pids() { vb_pids_with_arg python3 "--unix-target=$(vb_display_sock web)"; }
-# Running means its server runs: the one that leads the session setsid gave
-# it. A copy forked for a connection leads none, and can outlive a server that
-# was killed, holding the port where nothing answers any more.
-vb_websockify_alive() {
+# Its server, by PID: the one that leads the session setsid gave it. A copy
+# forked for a connection leads none, and can outlive a server that was
+# killed, holding the port where nothing answers any more.
+vb_websockify_server() {
   local pid sid
   for pid in $(vb_websockify_pids); do
     sid=$(ps -o sid= -p "$pid" 2>/dev/null) || continue
-    [[ ${sid// /} == "$pid" ]] && return 0
+    [[ ${sid// /} == "$pid" ]] && { printf '%s\n' "$pid"; return 0; }
   done
+  return 1
+}
+# Running means its server runs.
+vb_websockify_alive() { vb_websockify_server >/dev/null; }
+# The port the viewer's page is served on, read from its server's own command
+# line (127.0.0.1:PORT, as vb_web_start gives it): the viewer keeps the port it
+# started on until it stops, whatever VEDABASE_WEB_PORT says now.
+vb_websockify_port() {
+  local pid arg
+  pid=$(vb_websockify_server) || return 1
+  while IFS= read -r -d '' arg; do
+    [[ $arg =~ ^127\.0\.0\.1:([0-9]+)$ ]] || continue
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  done 2>/dev/null <"/proc/$pid/cmdline" || true
   return 1
 }
 # Ends websockify and its copies, and waits up to 5 s for them to go, and so

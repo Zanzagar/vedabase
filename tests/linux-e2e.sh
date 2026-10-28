@@ -2,8 +2,9 @@
 # Linux end to end: a clean unattended install, doctor, permissions, the
 # browser viewer (a word copied in Folio reaches its clipboard and converts;
 # with CHROME_EXE set: it connects, survives six wrong passwords, takes typing,
-# shows a copy made in the browser in noVNC's clipboard panel), stop, and a
-# backup -> --reinstall --restore round trip.
+# shows a copy made in the browser in noVNC's clipboard panel; its link names
+# the port it listens on), stop, install.sh and the viewer's commands waiting
+# for one another, and a backup -> --reinstall --restore round trip.
 set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/linux-e2e H=$B/home VH=$B/vb PORT=${VB_TEST_PORT:-6091}
@@ -18,6 +19,7 @@ cd "$REPO" || exit 1
 
 run ./install.sh --home "$VH" "${src[@]}" >"$B/install.log" 2>&1
 check "fresh install succeeds (log: $B/install.log)" test $? -eq 0
+check "what install.sh leaves running does not hold the lock" flock -n "$VH/run/lock" true
 run "$H/.local/bin/vedabase" doctor >"$B/doctor.log" 2>&1
 check "doctor passes" test $? -eq 0
 check "the home is private (0700)" test "$(stat -c %a "$VH")" = 700
@@ -35,6 +37,13 @@ check "vedabase web starts" test $? -eq 0
 url=$(grep -o "http://localhost:$PORT/vnc.html[^ ]*" "$B/web.out" | head -n1)
 check "it prints the browser link" test -n "$url"
 check "the web display has no failed-login lockout" grep -q -- '-UseBlacklist=0' "/proc/$(cat "$VH/run/web/xvnc.pid")/cmdline"
+# The link is the running viewer's, on the port its page server listens on,
+# not the one the command at hand would start a viewer on: with
+# VEDABASE_WEB_PORT unset (a viewer would start on 6080), 'vedabase status'
+# still gives $PORT.
+run env -u VEDABASE_WEB_PORT "$H/.local/bin/vedabase" status >"$B/status-port.out" 2>&1
+check "a plain 'vedabase status' gives the link on the viewer's own port, $PORT" \
+  grep -q "^web: *http://localhost:$PORT/vnc.html" "$B/status-port.out"
 # With no desktop, 'vedabase unicode' converts the browser viewer's clipboard.
 web_clip() { # xclip ARGS... on the browser viewer's display
   DISPLAY=$(<"$VH/run/web/display") XAUTHORITY=$VH/run/web/xauth PATH=$VH/tools/root/usr/bin:$PATH \
@@ -93,6 +102,19 @@ else
 fi
 VEDABASE_WEB_PORT=$PORT run "$H/.local/bin/vedabase" web >"$B/web2.out" 2>&1
 check "a second vedabase web gives the link again" grep -q 'already running' "$B/web2.out"
+# Run with VEDABASE_WEB_PORT unset, or set to another port, it gives the
+# running viewer's link and tunnel all the same: the viewer keeps its port
+# until it stops, and the command says how to move it.
+run env -u VEDABASE_WEB_PORT "$H/.local/bin/vedabase" web >"$B/web-plain.out" 2>&1
+check "a plain 'vedabase web' while the viewer runs gives its link, on port $PORT" \
+  grep -q "localhost:$PORT/vnc.html" "$B/web-plain.out"
+check "  ... and the tunnel to that port" grep -qF -- "-L $PORT:127.0.0.1:$PORT " "$B/web-plain.out"
+other=$((PORT + 1))
+VEDABASE_WEB_PORT=$other run "$H/.local/bin/vedabase" web >"$B/web-other-port.out" 2>&1
+check "'vedabase web' asking for port $other while the viewer runs gives the link on $PORT, none on $other" \
+  test "$(grep -c "localhost:$PORT/vnc.html" "$B/web-other-port.out")" -ge 1 \
+  -a "$(grep -c "localhost:$other/" "$B/web-other-port.out")" -eq 0
+check "  ... and says how to move the viewer to $other" grep -qF "VEDABASE_WEB_PORT=$other vedabase web" "$B/web-other-port.out"
 # Stopping must pick no process by name or by a recorded PID: one that only
 # names the nudger (another install's, an editor on it) must survive, even
 # behind a stale nudge.pid, as an earlier draft of the viewer kept.
@@ -322,6 +344,39 @@ check "'vedabase web' facing a display that does not answer returns in time (${t
 check "  ... says copies will not reach the clipboard panel" grep -q "clipboard panel" "$B/web-stalled.out"
 check "  ... and gives the link all the same" grep -q "localhost:$PORT/vnc.html" "$B/web-stalled.out"
 run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+# An install or repair runs under the lock that 'open', 'web' and 'stop'
+# take, so that it and they never interleave. install.sh started while another
+# command holds the lock (here the test, for 6 s) begins only once it is free:
+# the holder looks at what install.sh has printed just before it lets go.
+# shellcheck disable=SC2016 # $1 is the holder's own argument
+flock "$VH/run/lock" bash -c 'sleep 6; grep -c "Installing into" "$1"' _ "$B/repair-wait.log" \
+  >"$B/repair-wait.early" 2>&1 &
+holder=$!
+sleep 0.5
+run ./install.sh --home "$VH" "${src[@]}" >"$B/repair-wait.log" 2>&1
+rc=$?
+wait "$holder"
+check "install.sh run while another command holds the lock begins once it is free, then repairs (exit $rc)" \
+  test "$rc" -eq 0 -a "$(<"$B/repair-wait.early")" = 0
+# And a command started while install.sh runs waits for it: here the copy of
+# install.sh that holds the lock is held up (SIGSTOP) for 6 s once the work
+# has begun in its re-run, so the lock stays taken that long, whatever the
+# repair takes. It is started directly, not through run, so that $! is that
+# copy itself.
+HOME=$H ./install.sh --home "$VH" "${src[@]}" >"$B/repair-hold.log" 2>&1 &
+repair=$!
+for _ in $(seq 1 100); do grep -q 'Installing into' "$B/repair-hold.log" && break; sleep 0.1; done
+hold "$repair"
+(sleep 6; kill -CONT "$repair") &
+resumer=$!
+started=$SECONDS
+run "$H/.local/bin/vedabase" stop >/dev/null 2>&1
+took=$((SECONDS - started))
+wait "$resumer"
+wait "$repair"
+rc=$?
+check "'vedabase stop' run while install.sh runs waits for it to finish (${took} s; install.sh exit $rc)" \
+  test "$took" -ge 5 -a "$rc" -eq 0
 
 run "$H/.local/bin/vedabase" backup "$B/backup.tar.gz" >"$B/backup.log" 2>&1
 check "backup succeeds" test $? -eq 0

@@ -31,6 +31,10 @@ or folio (Folio Views with no infobase; use File > Open). Without a COMMAND,
 'vedabase' or 'vedabase vanibase' opens a window if there is a display and
 the browser viewer otherwise. 'vedabase help' shows this text; Folio's own
 help opens with 'vedabase open help'.
+
+The browser viewer listens on port 6080, or on the one VEDABASE_WEB_PORT
+names when it starts (VEDABASE_WEB_PORT=6081 vedabase web). It keeps that
+port until 'vedabase stop', and 'web' and 'status' give the link to it.
 EOF
 }
 
@@ -75,18 +79,27 @@ cmd_open() {
   launch "${1:-vedabase}"
 }
 
-web_url() {
+web_url() { # PORT
   printf 'http://localhost:%s/vnc.html?autoconnect=1&resize=scale&reconnect=1&password=%s\n' \
-    "$(vb_web_port)" "$(<"$VB_RUN/web/password")"
+    "$1" "$(<"$VB_RUN/web/password")"
 }
 
-# How to reach the viewer: the link, and outside WSL the SSH tunnel it needs.
+# How to reach the viewer: the link, and outside WSL the SSH tunnel it needs,
+# both to the port the running viewer listens on. VEDABASE_WEB_PORT picks the
+# port of a viewer that starts; one that runs keeps its own, since moving it
+# would cut off the browsers on it, so another port asked for now only gets
+# told how to move it.
 web_instructions() {
   local host port
-  port=$(vb_web_port)
+  port=$(vb_websockify_port) ||
+    vb_die "the browser viewer's page server has stopped; run 'vedabase stop', then 'vedabase web'"
+  if [[ -n ${VEDABASE_WEB_PORT:-} && $VEDABASE_WEB_PORT != "$port" ]]; then
+    printf 'The browser viewer is on port %s, and stays there while it runs. To move it\nto port %s, run:  vedabase stop; VEDABASE_WEB_PORT=%s vedabase web\n\n' \
+      "$port" "$VEDABASE_WEB_PORT" "$VEDABASE_WEB_PORT"
+  fi
   if [[ -n ${WSL_DISTRO_NAME:-} ]]; then
     # WSL forwards localhost to Windows, so no tunnel is needed.
-    printf 'Open this in your Windows browser:\n  %s\n' "$(web_url)"
+    printf 'Open this in your Windows browser:\n  %s\n' "$(web_url "$port")"
   else
     host=$(hostname -f 2>/dev/null || hostname)
     cat <<EOF
@@ -94,7 +107,7 @@ web_instructions() {
      ssh -N -L $port:127.0.0.1:$port $VB_USER@$host
    (Or add a local forward $port -> 127.0.0.1:$port to your SSH client's saved session.)
 2. Open in a browser:
-     $(web_url)
+     $(web_url "$port")
 EOF
   fi
   printf '\nCopy text out through the clipboard tab on the noVNC side panel.\nStop it with: vedabase stop\n'
@@ -142,7 +155,7 @@ cmd_stop() {
 }
 
 cmd_status() {
-  local pids
+  local pids port
   pids=$(vb_prefix_pids | paste -sd' ')
   printf 'install:  %s\n' "$(vb_installed && echo "$VB_APP_DIR" || echo 'not installed')"
   if [[ -n $pids ]]; then
@@ -150,8 +163,8 @@ cmd_status() {
   else
     printf 'wine:     not running\n'
   fi
-  if vb_display_alive web && vb_websockify_alive; then
-    printf 'web:      %s\n' "$(web_url)"
+  if vb_display_alive web && port=$(vb_websockify_port); then
+    printf 'web:      %s\n' "$(web_url "$port")"
   else
     printf 'web:      off\n'
   fi
@@ -226,9 +239,10 @@ EOF
 
 # 'open', 'web' and 'stop' change what runs for this installation, one at a
 # time: two at once could each take what the other had just started for
-# leftovers. flock(1) holds the lock while the command runs and lets it go
-# when the command ends; -o keeps it out of what the command leaves running
-# (Xvnc, websockify, Wine), which outlives it.
+# leftovers. install.sh holds the same lock while it installs or repairs.
+# flock(1) holds the lock while the command runs and lets it go when the
+# command ends; -o keeps it out of what the command leaves running (Xvnc,
+# websockify, Wine), which outlives it.
 with_lock() { # ARGS...: this script again, with ARGS, under the lock
   local rc=0
   if [[ -n ${VB_LOCKED:-} ]]; then
@@ -241,7 +255,7 @@ with_lock() { # ARGS...: this script again, with ARGS, under the lock
   mkdir -p "$VB_RUN"
   chmod 700 "$VB_RUN"
   VB_LOCKED=1 flock -o -w 60 -E 75 "$VB_RUN/lock" "$0" "$@" || rc=$?
-  ((rc != 75)) || vb_die "another 'vedabase' command is still busy with this installation; try again in a minute"
+  ((rc != 75)) || vb_die "another 'vedabase' command, or install.sh, is still busy with this installation; try again once it has finished"
   exit "$rc"
 }
 
