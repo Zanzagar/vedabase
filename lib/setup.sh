@@ -122,7 +122,7 @@ vb_installer_stuck() { # LAST_SCREEN
 # The copy runs in a window titled "Installing Files", whose only button is
 # Cancel, so that title must never join the list below.
 vb_run_installer() { # REGISTERED_NAME
-  local name=$1 log=$VB_LOGS/installer.log wid title acted last='' seen='' tries=0 typed=0 finished=''
+  local name=$1 log=$VB_LOGS/installer.log wid title acted last='' seen='' tries=0 typed=0 finished='' titles
   local deadline=$((SECONDS + 1800)) idle_since=$SECONDS
   vb_say "Running Install.exe (driven automatically; takes a few minutes)"
   vb_space_filler_add
@@ -143,8 +143,11 @@ vb_run_installer() { # REGISTERED_NAME
           # On a desktop's own screen (WSLg, 2026-11-23), the restart notice
           # after 'Finished' took neither click nor key in seven tries while
           # Install.exe's Fonts window was up. The files are in place by then,
-          # and Wine is restarted below as the notice asks: go on.
+          # and Wine is restarted below as the notice asks: go on, unless an
+          # Error shows too (this loop looks at one window at a time).
           [[ $title == Notice && -n $finished ]] || vb_installer_stuck "$title"
+          titles=$(vb_windows | cut -f2) || titles=''
+          ! grep -qx Error <<<"$titles" || vb_installer_stuck Error
           printf '%s\n' 'Notice left open: the install had finished' >>"$log"
           break 2
         fi
