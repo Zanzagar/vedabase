@@ -89,6 +89,27 @@ if ($InFile) {
 }
 
 # ---------------------------------------------------------------- clipboard mode
+# The shortcut's key (Ctrl+Alt+U) goes to this script's console window:
+# Windows gives a shortcut's key to the first window of the program it starts,
+# and the console's comes first. While that window is there, the key brings it
+# back, empty and in front, instead of starting another conversion (seen on
+# Windows 11, 2026-11-23). So the key is taken off it, and the window hidden
+# again in case a press already brought it back. Only a console made for this
+# script: run from a Command Prompt, the console window is the prompt's own.
+# A press before this runs still shows the window until here.
+try {
+  Add-Type -Namespace VedaBaseUnicode -Name Native -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern System.IntPtr GetConsoleWindow();
+[DllImport("kernel32.dll")] public static extern uint GetConsoleProcessList(uint[] processList, uint count);
+[DllImport("user32.dll")] public static extern System.IntPtr SendMessageW(System.IntPtr window, int message, System.IntPtr wParam, System.IntPtr lParam);
+[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show);
+'@
+  $console = [VedaBaseUnicode.Native]::GetConsoleWindow()
+  if ($console -ne [IntPtr]::Zero -and [VedaBaseUnicode.Native]::GetConsoleProcessList((New-Object 'uint32[]' 2), 2) -eq 1) {
+    [void][VedaBaseUnicode.Native]::SendMessageW($console, 0x0032, [IntPtr]::Zero, [IntPtr]::Zero)  # WM_SETHOTKEY: no key
+    [void][VedaBaseUnicode.Native]::ShowWindow($console, 0)                                         # SW_HIDE
+  }
+} catch { }
 Add-Type -AssemblyName System.Windows.Forms
 
 # A small window that closes itself; it is the only sign the shortcut gives.
