@@ -75,6 +75,17 @@ vb_windows() {
   done
 }
 
+# Every visible window's title, one per line. Unlike vb_windows, it fails when
+# xdotool cannot list the windows or read one's title.
+vb_window_titles() {
+  local ids w t
+  ids=$(xdotool search --onlyvisible --name . 2>/dev/null) || return 1
+  for w in $ids; do
+    t=$(xdotool getwindowname "$w" 2>/dev/null) || return 1
+    printf '%s\n' "$t"
+  done
+}
+
 vb_click() { # WID X Y
   xdotool mousemove --window "$1" "$2" "$3" click 1
   sleep 0.3
@@ -144,9 +155,10 @@ vb_run_installer() { # REGISTERED_NAME
           # after 'Finished' took neither click nor key in seven tries while
           # Install.exe's Fonts window was up. The files are in place by then,
           # and Wine is restarted below as the notice asks: go on, unless an
-          # Error shows too (this loop looks at one window at a time).
+          # Error shows too (this loop looks at one window at a time), or the
+          # windows cannot all be read to tell.
           [[ $title == Notice && -n $finished ]] || vb_installer_stuck "$title"
-          titles=$(vb_windows | cut -f2) || titles=''
+          titles=$(vb_window_titles) || vb_installer_stuck "$title"
           ! grep -qx Error <<<"$titles" || vb_installer_stuck Error
           printf '%s\n' 'Notice left open: the install had finished' >>"$log"
           break 2

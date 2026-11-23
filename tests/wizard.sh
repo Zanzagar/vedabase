@@ -3,8 +3,8 @@
 # Wine and X faked; no install needed. A scripted wizard shows its windows, and
 # a key moves it on unless the window is stuck. Through to the end; a restart
 # notice that will not close after 'Finished' (as on WSLg) ends the wizard, but
-# not before 'Finished', and not while an Error shows too, whichever window
-# comes first.
+# not before 'Finished', not while an Error shows too, whichever window comes
+# first, and not when the windows cannot all be read.
 set -u
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 B=$VB_TEST_WORK/wizard
@@ -12,9 +12,10 @@ rm -rf -- "$B"; mkdir -p "$B"; chmod 700 "$B"
 
 PAGES='Pre-Install;License Agreement;User Information;Important Information;Select Install Type;Select Packages;Install Folder;Shortcut Folder;Ready to Install;VedaBase Icons;WinAmp Install;Finished'
 
-# wizard NAME STEPS...: run vb_run_installer against STEPS, in a subshell. A
-# step lists the windows showing, ';' between them; '!' before a step means a
-# key does not move it on. Prints the outcome to $B/NAME.out, returns its status.
+# [FAULT=search|title] wizard NAME STEPS...: run vb_run_installer against
+# STEPS, in a subshell. A step lists the windows showing, ';' between them; '!'
+# before a step means a key does not move it on. Prints the outcome to
+# $B/NAME.out, returns its status.
 wizard() {
   local name=$1
   shift
@@ -42,7 +43,15 @@ wizard() {
     vb_space_filler_add() { :; }
     sleep() { :; }
     setsid() { :; }
-    xdotool() { :; }
+    # The real vb_window_titles asks xdotool; it answers from the step, or
+    # fails as FAULT says (search, or title).
+    fault=${FAULT:-}
+    xdotool() {
+      case $1 in
+        search) [[ $fault != search ]] || return 1; vb_windows | cut -f1 ;;
+        getwindowname) [[ $fault != title ]] || return 1; vb_windows | awk -F'\t' -v w="$2" '$1 == w { print $2 }' ;;
+      esac
+    }
     wineserver() { :; }
     wineboot() { :; }
     vb_run_installer 'A Tester'
@@ -70,6 +79,12 @@ check "  naming the Error" grep -q "stalled at screen 'Error'" "$B/notice-error.
 wizard error-notice "${page_steps[@]}" '!Error;Notice'
 check "so it does with the Error listed first" test $? -ne 0
 check "  naming the Error" grep -q "stalled at screen 'Error'" "$B/error-notice.out"
+
+FAULT=search wizard scan-fails "${page_steps[@]}" '!Notice;Fonts'
+check "a stuck notice whose windows cannot be listed stops the install" test $? -ne 0
+FAULT=title wizard title-fails "${page_steps[@]}" '!Notice;Error'
+check "so does one whose windows' titles cannot be read" test $? -ne 0
+check "  naming the notice" grep -q "stalled at screen 'Notice'" "$B/title-fails.out"
 
 wizard stuck-page 'Pre-Install' '!License Agreement'
 check "any other page that will not move on stops the install" test $? -ne 0
