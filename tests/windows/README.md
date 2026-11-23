@@ -30,7 +30,8 @@ PowerShell).
 
 Each value comes from `windows/install-vedabase.ps1` or
 `windows/vedabase-unicode.ps1`; the script's comments give the line (as of
-commit 5b8bf42). When the installer changes, change this too.
+2026-11-23, when the converter gained `-FromShortcut`). When the installer or
+the converter changes, change this too.
 
 | Part | Checks | In the installer |
 | --- | --- | --- |

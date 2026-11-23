@@ -23,8 +23,8 @@
   (Win+V).
 
   Each path, key and value comes from windows\install-vedabase.ps1 (install:N,
-  its line N) or windows\vedabase-unicode.ps1 (unicode:N), as of commit
-  5b8bf42. Plain ASCII on purpose: Windows PowerShell 5.1 reads a script
+  its line N) or windows\vedabase-unicode.ps1 (unicode:N), as of 2026-11-23
+  (-FromShortcut). Plain ASCII on purpose: Windows PowerShell 5.1 reads a script
   without a BOM in the ANSI code page, so other letters are written \uXXXX.
 
 .PARAMETER NoVaniBase
@@ -322,7 +322,7 @@ function Get-LinkByShell([string]$Path) {
 
 function Initialize-Clipboard { Add-Type -AssemblyName System.Windows.Forms }
 # Other programs (clipboard history, cloud clipboard) open the clipboard after
-# every change, so a call that finds it busy is tried again (as unicode:100-110).
+# every change, so a call that finds it busy is tried again (as unicode:131-141).
 function Invoke-Clipboard([scriptblock]$Call) {
   for ($try = 1; ; $try++) {
     try { return (& $Call) }
@@ -416,8 +416,8 @@ function Initialize-Paths([string]$Checkout) {
   $script:SharedDesktop = "$env:PUBLIC\Desktop"                            # install:311, :338, :381
   $script:PowerShellExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" # install:332
   $script:Converter = "$Cache\vedabase-unicode.ps1"                        # install:328
-  $script:ConverterArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Converter`"" # install:333
-  $script:LastDir = "$env:LOCALAPPDATA\VedaBase"                           # $LastFile, unicode:117
+  $script:ConverterArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Converter`" -FromShortcut" # install:333
+  $script:LastDir = "$env:LOCALAPPDATA\VedaBase"                           # $LastFile, unicode:148
   $script:LastFile = "$LastDir\unicode-last.txt"
 }
 
@@ -766,7 +766,7 @@ function Test-Press([string]$Name, [string]$Text, [string]$Want, [int[]]$Statuse
     $have = (@($ended | Sort-Object) | ForEach-Object { if ($_ -lt 0) { 'none' } else { [string]$_ } }) -join ' and '
     $need = (@($Statuses | Sort-Object) | ForEach-Object { [string]$_ }) -join ' and '
     if ($have -ne $need) { "it ended with status $have, not $need" }
-    if ($ended -contains -1) { 'a run did not end within 30 s, so this check ended it: was its window waiting for a click? (unicode:94-98)' }
+    if ($ended -contains -1) { 'a run did not end within 30 s, so this check ended it: was its window waiting for a click? (unicode:125-129)' }
   }
 }
 
@@ -834,14 +834,14 @@ function Test-Converter {
     Test-Press 'run again with no new copy, it changes nothing (status 4: refused, the text being converted already)' '' $verseU @(4) -Again
     Test-Press "'dehino' is left as it is: nothing to convert (status 3)" 'dehino' 'dehino' @(3)
     # docs\testing.md, Windows only: converted, yajna holds nothing outside
-    # Windows-1252, so only the remembered result (unicode:112-116) keeps a
+    # Windows-1252, so only the remembered result (unicode:143-147) keeps a
     # second run from making yajsa (s with a dot below) of it.
     $yajna = U 'yaj\u00EFa'
     $yajnaU = U 'yaj\u00F1a'
     $yajsa = U 'yaj\u1E63a'
     Test-Press "$(Show $yajna) becomes $(Show $yajnaU) (status 0)" $yajna $yajnaU @(0)
     Test-Press "run again, it does not make $(Show $yajsa) of it (status 4)" '' $yajnaU @(4) -Again
-    Test-Press "two runs at once on $(Show $yajna) leave $(Show $yajnaU), never $(Show $yajsa) (statuses 0 and 4: one at a time, unicode:123-128)" $yajna $yajnaU @(0, 4)
+    Test-Press "two runs at once on $(Show $yajna) leave $(Show $yajnaU), never $(Show $yajsa) (statuses 0 and 4: one at a time, unicode:154-159)" $yajna $yajnaU @(0, 4)
     # tests/unicode.sh: all 31 letters in lib\balaram-unicode.tsv's order,
     # Windows-1252 punctuation, and Windows line ends.
     $all = U ('\u00CF\u00EF\u00C4\u00E4\u00C9\u00E9\u00C7\u00E7\u00DC\u00FC\u00D2\u00F2\u00D9\u00F9\u00DF\u00FF' +
