@@ -22,3 +22,7 @@ __pycache__/
 
 # Git worktrees the agent harness makes for parallel work.
 .claude/worktrees/
+
+# The Windows test kit's output, where tests/windows/README.md writes it
+# (> check.txt in the clone's folder).
+/check.txt
