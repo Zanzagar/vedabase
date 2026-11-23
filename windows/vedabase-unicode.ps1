@@ -8,7 +8,7 @@
   text copied out of it reads wrongly anywhere else. This puts the Unicode
   letters on the clipboard instead, using the table in balaram-unicode.tsv.
   The installer copies both into C:\Program Files\VedaBase-Setup and makes a
-  "VedaBase Unicode" shortcut (Ctrl+Alt+U) that runs this with no arguments.
+  "VedaBase Unicode" shortcut (Ctrl+Alt+U) that runs this with -FromShortcut.
 
   Exit status: 0 converted; 3 nothing to convert; 4 not converted, because the
   text already holds Unicode letters the conversion makes (a with a macron,
@@ -24,17 +24,48 @@
 
 .PARAMETER InFile
   Convert this UTF-8 file into OutFile instead of the clipboard (for testing).
+
+.PARAMETER FromShortcut
+  Started by the installer's shortcut, in a console window of its own: take
+  the shortcut's key off that window, before anything else (see below).
+  Without it, no window is touched: a run from a prompt keeps its window.
 #>
 [CmdletBinding()]
 param(
   [string]$InFile = '',
   [string]$OutFile = '',
-  [string]$Map = ''
+  [string]$Map = '',
+  [switch]$FromShortcut
 )
 
 Set-StrictMode -Version 2
 $ErrorActionPreference = 'Stop'
 $Utf8 = New-Object System.Text.UTF8Encoding $false
+
+# Started from a shortcut, the console reads the shortcut and takes its key
+# (Ctrl+Alt+U) for its own window. While that window lives, the key brings it
+# back, empty and in front, instead of starting another conversion (seen on
+# Windows 11, 2026-11-23). So, first of all, the key is taken off it and the
+# window hidden again, in case a press already brought it back. Only with
+# -FromShortcut, which only the shortcuts pass, and in a console of its own:
+# typed at a prompt, this runs in the prompt's own process and console, whose
+# window must stay. A press in the half second before this runs still shows
+# the window until here.
+if ($FromShortcut) {
+  try {
+    Add-Type -Namespace VedaBaseUnicode -Name Native -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern System.IntPtr GetConsoleWindow();
+[DllImport("kernel32.dll")] public static extern uint GetConsoleProcessList(uint[] processList, uint count);
+[DllImport("user32.dll")] public static extern System.IntPtr SendMessageW(System.IntPtr window, int message, System.IntPtr wParam, System.IntPtr lParam);
+[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr window, int show);
+'@
+    $console = [VedaBaseUnicode.Native]::GetConsoleWindow()
+    if ($console -ne [IntPtr]::Zero -and [VedaBaseUnicode.Native]::GetConsoleProcessList((New-Object 'uint32[]' 2), 2) -eq 1) {
+      [void][VedaBaseUnicode.Native]::SendMessageW($console, 0x0032, [IntPtr]::Zero, [IntPtr]::Zero)  # WM_SETHOTKEY: no key
+      [void][VedaBaseUnicode.Native]::ShowWindow($console, 0)                                         # SW_HIDE
+    }
+  } catch { }   # a window left as it was is no reason to stop converting
+}
 
 # Installed, the table sits beside this script; in the repository, in lib\.
 if (-not $Map) {

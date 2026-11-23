@@ -330,7 +330,7 @@ function Install-UnicodeConverter {
   Copy-Item -LiteralPath (Join-Path $Root 'lib\balaram-unicode.tsv') -Destination $Cache -Force
   Unblock-File -LiteralPath $script, (Join-Path $Cache 'balaram-unicode.tsv') -ErrorAction SilentlyContinue
   $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-  $arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$script`""
+  $arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$script`" -FromShortcut"
   $about = 'Turns text copied out of VedaBase into Unicode, ready to paste anywhere'
   $menu = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Bhaktivedanta VedaBase 2003"
   New-Item -ItemType Directory -Force -Path $menu | Out-Null
