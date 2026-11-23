@@ -753,7 +753,14 @@ function Test-Press([string]$Name, [string]$Text, [string]$Want, [int[]]$Statuse
     $back = $null
     try {
       Set-ClipText $Text -AnsiOnly:$AnsiOnly
-      $back = Get-ClipText
+      # Read back for up to a second: right after a change, another program
+      # may still be reading the clipboard and publishing it again (on a
+      # Windows 11 PC, 2026-11-23, a single read-back once gave '').
+      for ($try = 1; $try -le 10; $try++) {
+        $back = Get-ClipText
+        if (Same $back $Text) { break }
+        Start-Sleep -Milliseconds 100
+      }
     } catch { Fail $Name @("could not put the test's text on the clipboard: $($_.Exception.Message)"); return }
     # Not the converter's doing: then there is nothing to test.
     if (-not (Same $back $Text)) { Skip "$Name (the clipboard read back $(Show $back) after this check put $(Show $Text) there)"; return }

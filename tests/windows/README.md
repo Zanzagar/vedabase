@@ -19,7 +19,9 @@ checks in [docs/testing.md](../../docs/testing.md). Like the rest of
    `\u0101`), which no file encoding loses.
 3. Leave the PC alone for about a minute while it runs VedaBase Unicode: its
    small window shows after each run and closes by itself. A copy made
-   meanwhile would spoil the test.
+   meanwhile would spoil the test, and so would one made on a phone that
+   shares its clipboard with the PC (Phone Link) or in a Remote Desktop
+   window that shares it: close or disconnect those first.
 
 It prints `PASS`, `FAIL`, `SKIP` and `NOTE` lines, the number of failures,
 then the checks that need a person. Exit status: 0 nothing failed, 1 a check
