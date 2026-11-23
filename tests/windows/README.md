@@ -72,7 +72,17 @@ key: the key is Windows' part.
 
 ## How far it has been tested
 
-Not yet on Windows. On Linux, on 2026-10-27, under PowerShell 7.6: it parses,
+On Windows: on 2026-11-23, on one Windows 11 Home 25H2 PC (build 26200.9974,
+Windows PowerShell 5.1.26100), from an administrator account, unelevated.
+Before VedaBase Unicode was installed, the five checks that need it failed and
+no other; after, every check passed but one, skipped once: a single read-back
+of the clipboard right after the kit changed it gave '', and it now reads back
+for up to a second. With the converter's `-FromShortcut` (f844848), every check
+passed, while a monitor that never opens the clipboard saw no other program
+write to it. Not yet run in a second account, as a standard user, on
+Windows 10, or with an ANSI code page other than 1252.
+
+On Linux, on 2026-10-27, under PowerShell 7.6: it parses,
 is plain ASCII, uses no syntax PowerShell 7 added and only cmdlets Windows
 PowerShell 5.1 has, and reads no variable it does not define. Its shortcut
 reader reads the `.lnk` files Install.exe wrote under Wine (which count a
@@ -83,8 +93,7 @@ another version, a converter that converts twice or runs without its lock, or
 whose window never closes. In the stand-in, the C: drive is a scratch folder,
 the registry, clipboard, access lists and the converter's process are faked,
 and the conversions are made by the installed `vedabase-unicode.ps1 -InFile`.
-The harness that ran these is not in this repository. The first run on Windows
-is the real test.
+The harness that ran these is not in this repository.
 
 Windows PowerShell 5.1 runs it, not 7. Keep it plain ASCII, writing other
 letters as `\uXXXX` through its `U` function, and use nothing PowerShell 7

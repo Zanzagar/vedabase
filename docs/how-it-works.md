@@ -399,9 +399,15 @@ trims only the NULs at its end (`export_utf8_string()`).
   unzipped folder can go. A dialog that closes itself says what happened.
 - *Windows.* The installer copies the script and the table to
   `C:\Program Files\VedaBase-Setup`, which only administrators can change, and
-  makes two shortcuts to `powershell.exe -WindowStyle Hidden -File …`: one in
-  the Start menu with the key Ctrl+Alt+U, one on the shared desktop without,
-  since two shortcuts with one key would compete. The script reads and writes
+  makes two shortcuts to `powershell.exe -WindowStyle Hidden -File …
+  -FromShortcut`: one in the Start menu with the key Ctrl+Alt+U, one on the
+  shared desktop without, since two shortcuts with one key would compete.
+  Started from a shortcut, the console reads the shortcut and takes its key
+  for its own window, and while that hidden window lives the key brings it
+  back instead of starting another conversion; so the script, given
+  `-FromShortcut`, first takes the key off its console window and hides it
+  again (within 0.6 s of the press on the test PC; a press before that still
+  shows it for a moment). The script reads and writes
   the clipboard through Windows Forms, trying again while another program
   (clipboard history, cloud clipboard) holds it. It is plain ASCII, because
   Windows PowerShell 5.1 reads a script without a BOM in the ANSI code page,
@@ -473,14 +479,16 @@ started), a word copied in Folio reached a Wayland program (`wl-paste`) as
 `yathä`, and after `vedabase unicode` Wayland programs read `yathā`. Before the
 nudges (*Wine 11.0 and the X clipboard*, above), a copy reached the browser
 viewer's clipboard only when something happened to wake Wine, in one session
-of five. Not verified: the converter on Windows or a real Mac, and copying out
-of Folio on a desktop someone logs in to, KDE, or WSLg.
+of five. On Windows 11 (one PC, November 2026), Ctrl+Alt+U worked straight
+after the install: Bg 2.13's first line copied in VedaBase converted to
+*dehino 'smin yathā dehe* with the key, and Bg 3.9's with the desktop icon.
+Not verified: the converter on a real Mac, and copying out of Folio on a Linux
+desktop someone logs in to, KDE, or WSLg.
 
 **Not yet verified:** a real Mac; WineHQ bug 60494 on Apple Silicon; and on
-Windows: a second account, a standard user, an accepted restart, a note saved
-without administrator rights, a real uninstall and reinstall with the font
-reload in place (the reload itself ran on the test PC, and the same steps by
-hand fixed the blank pages), the *"Windows protected your PC"* and
+Windows: a second account, a standard user, an accepted restart, a real
+uninstall and reinstall with the font reload in place (the reload itself ran
+on the test PC, and the same steps by hand fixed the blank pages), the *"Windows protected your PC"* and
 *"Open File – Security Warning"* messages, Windows 10, Arm and non-English
 Windows, and whether Windows itself needs the `VedaBase_25.nfo` link.
 

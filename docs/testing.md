@@ -43,13 +43,16 @@ reinstalling without signing out of Windows.
    a text editor: it must read *dehino 'smin yathā dehe*, not *yathä*. Convert
    again without copying: it must say *this is the text it has just converted*
    and change nothing. Copy a word with no diacritics, such as *dehino*, and
-   convert: it must say *Nothing to convert*.
+   convert: it must say *Nothing to convert*. Read each paste before typing
+   after it: Windows 11's Notepad corrects words as you type, and turned a
+   pasted *yajña* into *yajna* when Enter was pressed after it.
 
 ## Windows only
 
 On the PC itself, `tests\windows\check.ps1` (in a clone of the repository)
 checks much of what follows by itself and lists what needs a person; see
-`tests/windows/README.md`. It has not yet run on Windows.
+`tests/windows/README.md`. It first ran on Windows on 23 November 2026, on one
+Windows 11 PC, where every check passed.
 
 - Record which prompts appeared (UAC, SmartScreen, "Open File – Security
   Warning"), so the README can describe them exactly.
@@ -96,8 +99,11 @@ checks much of what follows by itself and lists what needs a person; see
   window flashes, whether the small window's text shows ā and ṣ (not
   "Ä" and other odd letters), and which program has the focus after it
   closes. Press Ctrl+Alt+U twice quickly after copying *yajña* out of a
-  verse: the result must read *yajña*, never *yajṣa*. Try the desktop icon
-  too, and both again in a second account.
+  verse: the result must read *yajña*, never *yajṣa*. Press it again about
+  a second later, and again while the small window is up: each press must
+  open a second small window, never an empty black window (a double press
+  faster than half a second may show one for a moment). Try the desktop
+  icon too, and both again in a second account.
   `C:\Program Files\VedaBase-Setup` holds `vedabase-unicode.ps1` and
   `balaram-unicode.tsv`.
 

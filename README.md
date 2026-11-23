@@ -317,6 +317,9 @@ any program, AI tools included:
    - **Windows:** press **Ctrl+Alt+U**, or double-click **VedaBase Unicode**
      on the desktop. A small window says *Converted to Unicode* and closes
      by itself. If the keys do nothing at first, sign out and back in once.
+     Pressing the keys again while that window is up opens a second one,
+     which is harmless; a very quick double press may also show an empty
+     black window for a moment, which closes by itself.
    - **macOS:** open **VedaBase Unicode** in the `Applications` folder inside
      your home folder (drag it to the Dock to have it at hand).
    - **Linux:** choose **VedaBase Unicode** in the application menu, or run
@@ -331,12 +334,15 @@ leaves the text alone and says so, because converting twice would turn the
 Formatting (bold, italics) is not kept, and Devanagari script does not
 convert: it comes out as Latin letters. [How it works](docs/how-it-works.md#text-copied-out-of-vedabase).
 
-VedaBase Unicode is new. On Linux it has been tested with text copied in
-VedaBase itself: in the browser viewer, with two window managers, a simple
-one and GNOME's (on X11), and under GNOME's Wayland compositor, each on a
-server's private display. It has not been tried yet on a desktop someone logs
-in to, on KDE, nor on Windows or a real Mac. If it does not work for you, please tell
-whoever gave you this installer; the first reports will correct these steps.
+VedaBase Unicode is new. On Windows it has been tried on one Windows 11 PC
+(November 2026), where Ctrl+Alt+U worked straight after installing, without
+signing out, and so did the desktop icon. On Linux it has been tested with
+text copied in VedaBase itself: in the browser viewer, with two window
+managers, a simple one and GNOME's (on X11), and under GNOME's Wayland
+compositor, each on a server's private display. It has not been tried yet on
+a Linux desktop someone logs in to, on KDE, nor on a real Mac. If it does not
+work for you, please tell whoever gave you this installer; the first reports
+will correct these steps.
 
 ## What the installers add
 
