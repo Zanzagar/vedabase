@@ -103,8 +103,10 @@ EOF
 cmd_web() {
   require_install
   local geom=${VEDABASE_WEB_GEOMETRY:-1600x1000} t
-  [[ -x /usr/bin/xkbcomp && -d /usr/share/X11/xkb ]] ||
+  vb_have_xkbcomp ||
     vb_die "the browser viewer needs x11-xkb-utils and xkb-data (sudo apt-get install x11-xkb-utils xkb-data); on a desktop use 'vedabase open'"
+  vb_x11_sockets_ok /tmp/.X11-unix ||
+    vb_die "the browser viewer cannot start: $VB_NO_X11_SOCKETS. Use 'vedabase open', which opens VedaBase in a window"
   vb_env
   for t in Xtigervnc tigervncpasswd xauth xdotool; do
     command -v "$t" >/dev/null || vb_die "the browser viewer's parts are missing ($t); run install.sh again"

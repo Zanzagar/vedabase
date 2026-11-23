@@ -68,10 +68,6 @@ vb_sudo_install() {
   fi
 }
 
-# Xvnc runs the keymap compiler from the path it was built with, so a private
-# display needs xkbcomp installed system-wide (package x11-xkb-utils).
-vb_can_run_xvnc() { [[ -x /usr/bin/xkbcomp && -d /usr/share/X11/xkb ]]; }
-
 vb_ensure_wine() {
   [[ -x $VB_WINE_DIR/bin/wine ]] && return 0
   local tarball=$VB_HOME/cache/$VB_WINE_NAME.tar.xz

@@ -118,7 +118,11 @@ if [[ -z $restore ]] && { ((reinstall)) || ! vb_installed; }; then
   # Decide these before downloading 1.1 GB, or deleting the prefix. The space
   # an old prefix frees for --reinstall is counted as what is already there.
   [[ -n ${VEDABASE_INSTALL_DISPLAY:-} || -n ${DISPLAY:-} ]] || vb_can_run_xvnc ||
-    vb_die "Install.exe needs a display. Run once:  sudo apt-get install x11-xkb-utils xkb-data  (or run this from a desktop session)"
+    if vb_have_xkbcomp; then
+      vb_die "Install.exe needs a display, and $VB_NO_X11_SOCKETS. Run this from a desktop session"
+    else
+      vb_die "Install.exe needs a display. Run once:  sudo apt-get install x11-xkb-utils xkb-data  (or run this from a desktop session)"
+    fi
   # About 4 GB in all, less whatever an earlier run already put here.
   have_kb=$(du -sk "$VB_HOME/wine" "$VB_DOWNLOADS" "$VB_PREFIX" 2>/dev/null | awk '{s += $1} END {print s + 0}') ||
     true # du fails on the folders a fresh install has not made yet; awk still sums the rest
@@ -204,7 +208,11 @@ if ! vb_installed; then
     in_wizard=1
     vb_display_start install 1600x1000 None
   else
-    vb_warn "x11-xkb-utils is not installed, so the installer runs on your screen (${DISPLAY:-}). Leave the mouse alone until it finishes."
+    if vb_have_xkbcomp; then
+      vb_warn "$VB_NO_X11_SOCKETS: the installer runs on your screen (${DISPLAY:-}). Leave the mouse alone until it finishes."
+    else
+      vb_warn "x11-xkb-utils is not installed, so the installer runs on your screen (${DISPLAY:-}). Leave the mouse alone until it finishes."
+    fi
     vb_ensure_pkgs deps xdotool
   fi
   [[ -n $name ]] || name=$(getent passwd "$VB_USER" | cut -d: -f5 | cut -d, -f1) || true

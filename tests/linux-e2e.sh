@@ -16,6 +16,17 @@ run() { HOME=$H "$@"; }
 mapfile -t src < <(source_args)
 cd "$REPO" || exit 1
 
+# What a hidden display needs (lib/display.sh): an X socket folder one may
+# write in. WSLg mounts /tmp/.X11-unix read-only; a read-only folder stands in.
+mkdir -p "$B/x11-ro" "$B/x11-rw"; chmod 555 "$B/x11-ro"
+# shellcheck disable=SC2016 # expanded by the inner bash
+check "a read-only X socket folder rules out a hidden display, as under WSLg" \
+  bash -c 'source "$1/lib/common.sh" && source "$1/lib/display.sh" && ! vb_x11_sockets_ok "$2"' _ "$REPO" "$B/x11-ro"
+# shellcheck disable=SC2016
+check "a writable or missing one does not" \
+  bash -c 'source "$1/lib/common.sh" && source "$1/lib/display.sh" && vb_x11_sockets_ok "$2" && vb_x11_sockets_ok "$2/none"' _ "$REPO" "$B/x11-rw"
+chmod 755 "$B/x11-ro"
+
 run ./install.sh --home "$VH" "${src[@]}" >"$B/install.log" 2>&1
 check "fresh install succeeds (log: $B/install.log)" test $? -eq 0
 run "$H/.local/bin/vedabase" doctor >"$B/doctor.log" 2>&1

@@ -5,6 +5,16 @@
 # neither see nor type into it. The web viewer adds a VNC password because
 # websockify has to listen on a localhost TCP port for the SSH tunnel.
 
+# What a private display needs. Xvnc runs the keymap compiler from the path it
+# was built with, so xkbcomp must be installed system-wide (package
+# x11-xkb-utils). And every X server puts its socket in /tmp/.X11-unix, which
+# WSLg mounts read-only for its own display, so under WSLg no other X server
+# can start (found on Windows 11, 2026-11-23). A test passes another folder.
+vb_have_xkbcomp() { [[ -x /usr/bin/xkbcomp && -d /usr/share/X11/xkb ]]; }
+vb_x11_sockets_ok() { [[ ! -e $1 || -w $1 ]]; } # DIR: X servers make their sockets there
+vb_can_run_xvnc() { vb_have_xkbcomp && vb_x11_sockets_ok /tmp/.X11-unix; }
+VB_NO_X11_SOCKETS='/tmp/.X11-unix is read-only here (WSLg keeps it for its own display), so no hidden display can start'
+
 vb_cookie() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
 
 # Unix socket paths are limited to 107 bytes, too short for a deep

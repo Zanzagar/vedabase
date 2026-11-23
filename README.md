@@ -194,7 +194,10 @@ restoring a backup.
 program and runs natively there. If you do use WSL, the Windows Start menu
 only picks up entries from `/usr/share/applications`. `install.sh` copies them
 there when `sudo` needs no password, and otherwise prints the one command to
-run.
+run. Under WSLg (Windows 11), the original installer appears on your screen
+instead of in a hidden display, since WSLg keeps the folder that X displays
+need for itself: leave the mouse alone until it finishes. For the same reason
+the browser viewer does not run there; `vedabase` opens VedaBase in a window.
 
 ### On a computer with no screen
 

@@ -170,7 +170,11 @@ as you, with no root:
   - *No TCP:* `-rfbport -1` is essential. `-rfbport 0` still opens TCP
     5900+N on every interface, as the first test run showed.
   - *Requirement:* it needs `xkbcomp` at `/usr/bin` (packages `x11-xkb-utils`
-    and `xkb-data`), because the keymap compiler's path is compiled in.
+    and `xkb-data`), because the keymap compiler's path is compiled in, and a
+    `/tmp/.X11-unix` it may write in, where every X server puts its socket.
+    WSLg mounts that folder read-only for its own display, so under WSLg no
+    private display can start (found on Windows 11, November 2026), and the
+    browser viewer says so.
   - *Finding it again:* `vedabase stop` ends every `Xtigervnc` of your
     account whose arguments name the socket the display was started with.
     Each display gets a socket of its own, named partly at random and
@@ -226,8 +230,9 @@ compared as a folder, so that any spelling of the installation's folder finds
 it, and closes Wine before it ends the display.
 
 The Linux installer uses the same kind of private display, a separate `Xvnc`,
-so the wizard never appears on anyone's screen. Where `x11-xkb-utils` is
-missing but a desktop exists (for example WSLg), it uses that desktop instead.
+so the wizard never appears on anyone's screen. Where none can start, because
+`x11-xkb-utils` is missing or the X socket folder is read-only (WSLg), but a
+desktop exists, it uses that desktop instead and says so.
 
 ## Windows
 
