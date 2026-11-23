@@ -11,7 +11,15 @@
 # WSLg mounts read-only for its own display, so under WSLg no other X server
 # can start (found on Windows 11, 2026-11-23). A test passes another folder.
 vb_have_xkbcomp() { [[ -x /usr/bin/xkbcomp && -d /usr/share/X11/xkb ]]; }
-vb_x11_sockets_ok() { [[ ! -e $1 || -w $1 ]]; } # DIR: X servers make their sockets there
+vb_x11_sockets_ok() { # DIR: X servers make their sockets there
+  # A folder one may write in and enter; or none yet, nor a link to nothing,
+  # where one may be made.
+  if [[ -e $1 ]]; then
+    [[ -d $1 && -w $1 && -x $1 ]]
+  else
+    [[ ! -L $1 && -d ${1%/*}/ && -w ${1%/*}/ && -x ${1%/*}/ ]]
+  fi
+}
 vb_can_run_xvnc() { vb_have_xkbcomp && vb_x11_sockets_ok /tmp/.X11-unix; }
 VB_NO_X11_SOCKETS='/tmp/.X11-unix is read-only here (WSLg keeps it for its own display), so no hidden display can start'
 

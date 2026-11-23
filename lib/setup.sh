@@ -122,7 +122,7 @@ vb_installer_stuck() { # LAST_SCREEN
 # The copy runs in a window titled "Installing Files", whose only button is
 # Cancel, so that title must never join the list below.
 vb_run_installer() { # REGISTERED_NAME
-  local name=$1 log=$VB_LOGS/installer.log wid title acted last='' seen='' tries=0 typed=0
+  local name=$1 log=$VB_LOGS/installer.log wid title acted last='' seen='' tries=0 typed=0 finished=''
   local deadline=$((SECONDS + 1800)) idle_since=$SECONDS
   vb_say "Running Install.exe (driven automatically; takes a few minutes)"
   vb_space_filler_add
@@ -139,7 +139,15 @@ vb_run_installer() { # REGISTERED_NAME
       esac
       if [[ "$wid:$title" == "$seen" ]]; then
         tries=$((tries + 1))
-        ((tries <= 6)) || vb_installer_stuck "$title"
+        if ((tries > 6)); then
+          # On a desktop's own screen (WSLg, 2026-11-23), the restart notice
+          # after 'Finished' took neither click nor key in seven tries while
+          # Install.exe's Fonts window was up. The files are in place by then,
+          # and Wine is restarted below as the notice asks: go on.
+          [[ $title == Notice && -n $finished ]] || vb_installer_stuck "$title"
+          printf '%s\n' 'Notice left open: the install had finished' >>"$log"
+          break 2
+        fi
         case $title in
           'Notice' | 'Error') vb_press "$wid" Escape ;;
           *) vb_press "$wid" Return ;;
@@ -171,6 +179,7 @@ vb_run_installer() { # REGISTERED_NAME
         esac
       fi
       printf '%s\n' "$title" >>"$log"
+      [[ $title != Finished ]] || finished=1
       vb_space_filler_remove # a wizard page means the launcher's check is behind us
       acted=$title
       last=$title

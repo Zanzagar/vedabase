@@ -18,13 +18,18 @@ cd "$REPO" || exit 1
 
 # What a hidden display needs (lib/display.sh): an X socket folder one may
 # write in. WSLg mounts /tmp/.X11-unix read-only; a read-only folder stands in.
-mkdir -p "$B/x11-ro" "$B/x11-rw"; chmod 555 "$B/x11-ro"
-# shellcheck disable=SC2016 # expanded by the inner bash
-check "a read-only X socket folder rules out a hidden display, as under WSLg" \
-  bash -c 'source "$1/lib/common.sh" && source "$1/lib/display.sh" && ! vb_x11_sockets_ok "$2"' _ "$REPO" "$B/x11-ro"
-# shellcheck disable=SC2016
-check "a writable or missing one does not" \
-  bash -c 'source "$1/lib/common.sh" && source "$1/lib/display.sh" && vb_x11_sockets_ok "$2" && vb_x11_sockets_ok "$2/none"' _ "$REPO" "$B/x11-rw"
+sockets_ok() { # PATH: would vb_x11_sockets_ok take it?
+  # shellcheck disable=SC2016 # expanded by the inner bash
+  bash -c 'source "$1/lib/common.sh" && source "$1/lib/display.sh" && vb_x11_sockets_ok "$2"' _ "$REPO" "$1"
+}
+mkdir -p "$B/x11-ro" "$B/x11-rw"; : >"$B/x11-file"; ln -sfn "$B/nothing" "$B/x11-dangling"; chmod 555 "$B/x11-ro"
+refused() { ! sockets_ok "$1"; }
+check "a read-only X socket folder rules out a hidden display, as under WSLg" refused "$B/x11-ro"
+check "so does a missing one that cannot be made there" refused "$B/x11-ro/none"
+check "so does a writable file in its place" refused "$B/x11-file"
+check "so does a link to nothing in its place" refused "$B/x11-dangling"
+check "a writable folder does not" sockets_ok "$B/x11-rw"
+check "nor a missing one that can be made" sockets_ok "$B/x11-rw/none"
 chmod 755 "$B/x11-ro"
 
 run ./install.sh --home "$VH" "${src[@]}" >"$B/install.log" 2>&1
